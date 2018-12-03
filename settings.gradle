@@ -1,0 +1,9 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { url = MAVEN_CENTRAL_URL }
+    }
+}
+
+rootProject.name = 'advent-of-code-2018'
+rootProject.buildFileName = 'build.gradle.kts'

@@ -2,7 +2,7 @@ package day2
 
 import helper.readInput
 
-fun main() {
+fun main(args: Array<String>) {
 
     val lines = readInput(2).readLines()
 

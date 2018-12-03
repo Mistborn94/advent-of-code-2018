@@ -2,7 +2,7 @@ package day1
 
 import helper.readInput
 
-fun main() {
+fun main(args: Array<String>) {
 
     val frequencyChanges = readInput(1).readLines().map { line -> line.toLong() }
     val reachedFrequencies = mutableSetOf<Long>()

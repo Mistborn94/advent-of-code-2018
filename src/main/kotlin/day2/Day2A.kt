@@ -1,9 +1,8 @@
 package day2
 
 import helper.readInput
-import helper.readSampleInput
 
-fun main() {
+fun main(args: Array<String>) {
 
     val checksum = readInput(2).useLines { sequence ->
         sequence.map { line ->
