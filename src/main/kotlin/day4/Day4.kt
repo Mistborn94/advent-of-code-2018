@@ -5,43 +5,46 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
-
 val generalPattern = """\[([\d-]+) ([\d:]+)] (.+?)""".toRegex()
 val shiftStartPattern = """Guard #(\d+) begins shift""".toRegex()
 val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")!!
 val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")!!
 val shiftEnd = LocalTime.MIDNIGHT.plusHours(1)!!
 
+/*
+A: 733 * 48 = 35184
+B: 997 * 38 = 37886
+ */
 fun main(args: Array<String>) {
 
-    // #1 @ 1,3: 4x4
-    val actions = readInput(4)
+    val days = readInput(4)
         .readLines()
         .sorted()
         .map { splitLine(it) }
         .groupBy({ normalizeDate(it.first, it.second) }, { Pair(it.second, it.third) })
-        .mapValues { (_, values) -> buildDay(values) }
+        .values
+        .map { values -> buildDay(values) }
 
-    val overallSleepingMinutes = buildSleepingMap(actions)
+    val overallSleepingMinutes = buildSleepingMap(days)
 
-    solve(overallSleepingMinutes, { (_, value) -> value.sum() }, "A")
-    solve(overallSleepingMinutes, { (_, value) -> value.max()!! }, "B")
+    solve("A", overallSleepingMinutes) { (_, value) -> value.sum() }
+    solve("B", overallSleepingMinutes) { (_, value) -> value.max()!! }
 }
 
 private fun solve(
+    problemId: String,
     overallSleepingMinutes: Map<Int, Array<Int>>,
-    findGuard: (Map.Entry<Int, Array<Int>>) -> Int,
-    problemId: String
+    findGuard: (Map.Entry<Int, Array<Int>>) -> Int
 ) {
     val mostSleepingGuard = overallSleepingMinutes.maxBy(findGuard)!!
     val guardId = mostSleepingGuard.key
-    val popularMinute = findMostPopularMinute(mostSleepingGuard.value)
+    val popularMinute = mostSleepingGuard.value.indexOfMax()
     println("$problemId: $guardId * $popularMinute = ${guardId * popularMinute}")
 }
 
-private fun buildSleepingMap(actions: Map<LocalDate, GuardDay>): Map<Int, Array<Int>> {
+private fun buildSleepingMap(days: List<GuardDay>): Map<Int, Array<Int>> {
     val sleepingMinutes = mutableMapOf<Int, Array<Int>>()
-    actions.forEach { (_, day) ->
+    days.forEach { day ->
         day.applyActions(sleepingMinutes)
     }
     return sleepingMinutes
@@ -52,19 +55,17 @@ fun normalizeDate(date: LocalDate, time: LocalTime): LocalDate {
     else date.plusDays(1)
 }
 
-private fun findMostPopularMinute(minutes: Array<Int>): Int = minutes.indexOf(minutes.max())
+private fun Array<Int>.indexOfMax(): Int = indexOf(max())
 
 private fun parseTime(it: String) = LocalTime.parse(it, timeFormatter)!!
 private fun parseDate(it: String) = LocalDate.parse(it, dateFormatter)!!
 
 fun buildDay(lines: List<Pair<LocalTime, String>>): GuardDay {
 
-    val actions = mutableListOf<GuardAction>()
     val guardId = shiftStartPattern.matchEntire(lines[0].second)!!.groupValues[1].toInt()
 
-    for ((time, actionString) in lines.subList(1, lines.size)) {
-        actions.add(buildGuardAction(time, actionString))
-    }
+    val actions= lines.subList(1, lines.size)
+        .map { (time, action) -> buildGuardAction(time, action) }
 
     return GuardDay(guardId, actions)
 }
@@ -103,7 +104,8 @@ abstract class GuardAction(val time: LocalTime) {
 
 class FallAsleep(time: LocalTime) : GuardAction(time) {
     override fun applyActionUntil(sleepingMinutes: Array<Int>, nextAction: LocalTime) {
-        for (i in time.minute..nextAction.minusMinutes(1).minute) {
+        val endTime = nextAction.minusMinutes(1)
+        for (i in time.minute..endTime.minute) {
             sleepingMinutes[i] += 1
         }
     }
