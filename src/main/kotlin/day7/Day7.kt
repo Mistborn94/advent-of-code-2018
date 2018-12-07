@@ -5,22 +5,21 @@ import java.io.File
 import java.util.*
 
 val pattern = "Step ([A-Z]) must be finished before step ([A-Z]) can begin\\.".toRegex()
-const val WORK_MODIFIER = 0
-const val WORKER_COUNT = 2
 
 /*
 * PFKQWJSVUXEMNIHGTYDOZACRLB
 *
 */
 fun main(args: Array<String>) {
-
+//    val instructions = readInput(7).parseInstructions()
+//    val graph = Graph(instructions, 5, 60)
 
     val instructions = readSampleInput(7, 1).parseInstructions()
-    val graph = Graph(instructions)
+    val graph = Graph(instructions, 2, 0)
 
     val instructionOrder = graph.getInstructionOrder().joinToString(separator = "")
     println("A: $instructionOrder")
-    val executionTime = graph.getExecutionTime(WORKER_COUNT)
+    val executionTime = graph.getExecutionTime()
     println("B: $executionTime")
 }
 
@@ -31,11 +30,11 @@ private fun File.parseInstructions(): List<Pair<Char, Char>> {
             .map { (first, second) -> Pair(first[0], second[0]) }
 }
 
-data class Node(val letter: Char) : Comparable<Node> {
+data class Node(val letter: Char, val workModifier: Int) : Comparable<Node> {
 
     val next = sortedSetOf<Node>()
     val prerequisites = mutableSetOf<Node>()
-    val completionTime = letter - 'A' + WORK_MODIFIER + 1
+    val completionTime = letter - 'A' + workModifier + 1
 
     var processed = false
 
@@ -68,9 +67,17 @@ data class Node(val letter: Char) : Comparable<Node> {
     }
 }
 
-class Graph(instructions: Collection<Pair<Char, Char>>) {
+class Graph(
+    instructions: Collection<Pair<Char, Char>>,
+    private val workerCount: Int,
+    private val workModifier: Int
+) {
     private val letterNodes = mutableMapOf<Char, Node>()
-    private val rootNode = Node(' ')
+    private val rootNode = Node(' ', workModifier)
+
+    init {
+        instructions.forEach(this::addInstruction)
+    }
 
     private fun addInstruction(instruction: Pair<Char, Char>) {
         val first = getNode(instruction.first)
@@ -93,14 +100,14 @@ class Graph(instructions: Collection<Pair<Char, Char>>) {
     private fun nodeExists(letter: Char): Boolean = !rootNode.dfs(getNode(letter)).isEmpty()
 
     private fun getNode(letter: Char): Node {
-        return letterNodes.getOrPut(letter) { Node(letter) }
+        return letterNodes.getOrPut(letter) { Node(letter, workModifier) }
     }
 
     fun getInstructionOrder(): List<Char> {
         val tmpNext = rootNode.next.toSortedSet()
         val order = mutableListOf<Char>()
 
-        while (!getReadyNext(tmpNext).isEmpty()) {
+        while (!readyNodes(tmpNext).isEmpty()) {
             val node = startNode(tmpNext)
             order.add(node.letter)
             finishNode(node, tmpNext)
@@ -110,13 +117,14 @@ class Graph(instructions: Collection<Pair<Char, Char>>) {
         return order
     }
 
-    fun getExecutionTime(workerCount: Int): Int {
+    fun getExecutionTime(): Int {
         val tmpNext = rootNode.next.toSortedSet()
         val workers = (1..workerCount).map { Worker(it) }
 
-        var time = 0
+        var time = -1
         var busyCount = 0
-        while (!getReadyNext(tmpNext).isEmpty() || busyCount > 0) {
+
+        while (!readyNodes(tmpNext).isEmpty() || busyCount > 0) {
             time++
 
             workers.filter { it.finished(time) }
@@ -126,7 +134,7 @@ class Graph(instructions: Collection<Pair<Char, Char>>) {
                             busyCount--
                         }
 
-                        if (worker.finished(time) && !getReadyNext(tmpNext).isEmpty()) {
+                        if (worker.finished(time) && !readyNodes(tmpNext).isEmpty()) {
                             worker.start(time, startNode(tmpNext))
                             busyCount++
                         }
@@ -138,20 +146,17 @@ class Graph(instructions: Collection<Pair<Char, Char>>) {
     }
 
     private fun startNode(tmpNext: MutableSet<Node>): Node {
-        val node = getReadyNext(tmpNext).first()
+        val node = readyNodes(tmpNext).first()
         tmpNext.remove(node)
         return node
     }
 
-    fun getReadyNext(set: Set<Node>) = set.filter { it.ready }
+    private fun readyNodes(set: Set<Node>) = set.filter { it.ready }
 
-    private fun finishNode(node: Node, tmpNext: MutableSet<Node>) {
+    private fun finishNode(node: Node, tmpNext: MutableSet<Node>): Node {
         node.processed = true
         tmpNext.addAll(node.next)
-    }
-
-    init {
-        instructions.forEach(this::addInstruction)
+        return node
     }
 }
 
