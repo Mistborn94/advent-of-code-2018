@@ -96,7 +96,7 @@ class Graph(
         }
 
         rootNode.resetState()
-        return order.joinToString(separator = "")
+        return order.joinToString("")
     }
 
     fun getExecutionTime(): Int {

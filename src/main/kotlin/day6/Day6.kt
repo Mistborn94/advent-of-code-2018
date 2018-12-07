@@ -10,21 +10,21 @@ import kotlin.math.abs
 fun main(args: Array<String>) {
 
     val grid = Grid.fromCoordinates(readInput(6).readLines()
-             .map { it.split(", ") }
-             .mapIndexed { i, (x, y) -> Coordinate(i, x.toInt(), y.toInt()) })
+        .map { it.split(", ") }
+        .mapIndexed { i, (x, y) -> Coordinate(i, x.toInt(), y.toInt()) })
 
     //Coordinates on right and bottom edges are infinite
     val edges = grid.getEdgeIndices()
 
     val infiniteCoordinates = edges
-            .map { grid[it].closestPoint }
-            .plus(-1)
-            .toSet()
+        .map { grid[it].closestPoint }
+        .plus(-1)
+        .toSet()
 
     val (coordinateId, area) = grid.grid.groupBy { it.closestPoint }
-            .filter { !infiniteCoordinates.contains(it.key) }
-            .mapValues { it.value.size }
-            .maxBy { it.value }!!
+        .filter { !infiniteCoordinates.contains(it.key) }
+        .mapValues { it.value.size }
+        .maxBy { it.value }!!
 
     println("A: $coordinateId, $area")
 
@@ -67,20 +67,19 @@ class Grid(val width: Int, val height: Int, val grid: List<GridLocation>) {
         val topEdge = 0 until width
         val bottomEdge = (size - width) until size
         val leftEdge = IntProgression.fromClosedRange(0, size - width, width)
-        val rightEdge = IntProgression.fromClosedRange(width - 1, size, width)
+        val rightEdge = IntProgression.fromClosedRange(width - 1, size - 1, width)
 
-        val edges = rightEdge
-                .plus(bottomEdge)
-                .plus(topEdge)
-                .plus(leftEdge)
-        return edges
+        return rightEdge
+            .plus(bottomEdge)
+            .plus(topEdge)
+            .plus(leftEdge)
     }
 
     companion object {
         fun fromCoordinates(coordinates: List<Coordinate>): Grid {
             val width = coordinates.map { it.x }.max()!!
             val height = coordinates.map { it.y }.max()!!
-            val locations  = locationList(width, height)
+            val locations = locationList(width, height)
 
             for (coordinate in coordinates) {
                 for (location in locations) {
@@ -91,9 +90,14 @@ class Grid(val width: Int, val height: Int, val grid: List<GridLocation>) {
             return Grid(width, height, locations)
         }
 
-        private fun locationList(width: Int, height: Int) = (0 until width)
-                .zip(0 until height)
-                .map { GridLocation(it.first, it.second) }
+        private fun locationList(width: Int, height: Int): List<GridLocation> {
+            val zip = (0 until width)
+                .flatMap { x ->
+                    (0 until height).map { y -> Pair(x, y) }
+                }
+
+            return zip.map { GridLocation(it.first, it.second) }
+        }
     }
 
 }
