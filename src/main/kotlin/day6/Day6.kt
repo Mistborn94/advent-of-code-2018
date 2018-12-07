@@ -1,6 +1,7 @@
 package day6
 
 import helper.readInput
+import java.io.File
 import kotlin.math.abs
 
 /*
@@ -9,28 +10,21 @@ import kotlin.math.abs
  */
 fun main(args: Array<String>) {
 
-    val grid = Grid.fromCoordinates(readInput(6).readLines()
-        .map { it.split(", ") }
-        .mapIndexed { i, (x, y) -> Coordinate(i, x.toInt(), y.toInt()) })
+    val coordinates = buildCoordinates(readInput(6))
 
-    //Coordinates on right and bottom edges are infinite
-    val edges = grid.getEdgeIndices()
+    val grid = Grid.fromCoordinates(coordinates)
 
-    val infiniteCoordinates = edges
-        .map { grid[it].closestPoint }
-        .plus(-1)
-        .toSet()
-
-    val (coordinateId, area) = grid.grid.groupBy { it.closestPoint }
-        .filter { !infiniteCoordinates.contains(it.key) }
-        .mapValues { it.value.size }
-        .maxBy { it.value }!!
-
+    val (coordinateId, area) = grid.solveA()
     println("A: $coordinateId, $area")
 
-    val bestArea = grid.grid.filter { it.totalDistance() < 10000 }
-
+    val bestArea = grid.solveB()
     println("B: ${bestArea.size}")
+}
+
+private fun buildCoordinates(file: File): List<Coordinate> {
+    return file.readLines()
+        .map { it.split(", ") }
+        .mapIndexed { i, (x, y) -> Coordinate(i, x.toInt(), y.toInt()) }
 }
 
 data class Coordinate(val id: Int, val x: Int, val y: Int)
@@ -58,25 +52,49 @@ data class GridLocation(val x: Int, val y: Int, var closestPoint: Int, var close
     }
 }
 
-class Grid(val width: Int, val height: Int, val grid: List<GridLocation>) {
-    val size = width * height
+class Grid(
+    width: Int, height: Int, private val grid: List<GridLocation>,
+    private val distanceThreshold: Int
+) {
+    private val size = width * height
 
-    operator fun get(it: Int): GridLocation = grid[it]
+    private val edgeIndices: List<Int>
 
-    fun getEdgeIndices(): List<Int> {
+    init {
         val topEdge = 0 until width
         val bottomEdge = (size - width) until size
         val leftEdge = IntProgression.fromClosedRange(0, size - width, width)
         val rightEdge = IntProgression.fromClosedRange(width - 1, size - 1, width)
 
-        return rightEdge
+        edgeIndices = rightEdge
             .plus(bottomEdge)
             .plus(topEdge)
             .plus(leftEdge)
     }
 
+    private val infiniteCoordinates: Set<Int>
+        get() {
+            return edgeIndices
+                .map { this[it].closestPoint }
+                .plus(-1)
+                .toSet()
+        }
+
+    fun solveA(): Map.Entry<Int, Int> {
+        val infiniteCoordinates = infiniteCoordinates
+
+        return grid.groupBy { it.closestPoint }
+            .filter { !infiniteCoordinates.contains(it.key) }
+            .mapValues { it.value.size }
+            .maxBy { it.value }!!
+    }
+
+    fun solveB() = grid.filter { it.totalDistance() < distanceThreshold }
+
+    operator fun get(it: Int): GridLocation = grid[it]
+
     companion object {
-        fun fromCoordinates(coordinates: List<Coordinate>): Grid {
+        fun fromCoordinates(coordinates: List<Coordinate>, distanceThreshold: Int = 10000): Grid {
             val width = coordinates.map { it.x }.max()!!
             val height = coordinates.map { it.y }.max()!!
             val locations = locationList(width, height)
@@ -87,7 +105,7 @@ class Grid(val width: Int, val height: Int, val grid: List<GridLocation>) {
                 }
             }
 
-            return Grid(width, height, locations)
+            return Grid(width, height, locations, distanceThreshold)
         }
 
         private fun locationList(width: Int, height: Int): List<GridLocation> {
@@ -99,5 +117,4 @@ class Grid(val width: Int, val height: Int, val grid: List<GridLocation>) {
             return zip.map { GridLocation(it.first, it.second) }
         }
     }
-
 }
