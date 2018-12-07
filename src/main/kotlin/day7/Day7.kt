@@ -1,33 +1,15 @@
 package day7
 
-import helper.readSampleInput
 import java.io.File
 import java.util.*
 
 val pattern = "Step ([A-Z]) must be finished before step ([A-Z]) can begin\\.".toRegex()
 
-/*
-* PFKQWJSVUXEMNIHGTYDOZACRLB
-*
-*/
-fun main(args: Array<String>) {
-//    val instructions = readInput(7).parseInstructions()
-//    val graph = Graph(instructions, 5, 60)
-
-    val instructions = readSampleInput(7, 1).parseInstructions()
-    val graph = Graph(instructions, 2, 0)
-
-    val instructionOrder = graph.getInstructionOrder().joinToString(separator = "")
-    println("A: $instructionOrder")
-    val executionTime = graph.getExecutionTime()
-    println("B: $executionTime")
-}
-
-private fun File.parseInstructions(): List<Pair<Char, Char>> {
+fun File.parseInstructions(): List<Pair<Char, Char>> {
     return readLines()
-            .map { pattern.matchEntire(it) }
-            .map { it!!.destructured }
-            .map { (first, second) -> Pair(first[0], second[0]) }
+        .map { pattern.matchEntire(it) }
+        .map { it!!.destructured }
+        .map { (first, second) -> Pair(first[0], second[0]) }
 }
 
 data class Node(val letter: Char, val workModifier: Int) : Comparable<Node> {
@@ -48,8 +30,8 @@ data class Node(val letter: Char, val workModifier: Int) : Comparable<Node> {
         }
 
         val path = next.asSequence()
-                .map { it.dfs(find) }
-                .firstOrNull { it.isNotEmpty() }
+            .map { it.dfs(find) }
+            .firstOrNull { it.isNotEmpty() }
 
         return path ?: emptyList()
     }
@@ -103,7 +85,7 @@ class Graph(
         return letterNodes.getOrPut(letter) { Node(letter, workModifier) }
     }
 
-    fun getInstructionOrder(): List<Char> {
+    fun getInstructionOrder(): String {
         val tmpNext = rootNode.next.toSortedSet()
         val order = mutableListOf<Char>()
 
@@ -114,35 +96,38 @@ class Graph(
         }
 
         rootNode.resetState()
-        return order
+        return order.joinToString(separator = "")
     }
 
     fun getExecutionTime(): Int {
         val tmpNext = rootNode.next.toSortedSet()
         val workers = (1..workerCount).map { Worker(it) }
 
-        var time = -1
+        var time = 0
         var busyCount = 0
 
         while (!readyNodes(tmpNext).isEmpty() || busyCount > 0) {
             time++
 
-            workers.filter { it.finished(time) }
-                    .forEach { worker ->
-                        if (worker.hasNode()) {
-                            finishNode(worker.finish(), tmpNext)
-                            busyCount--
-                        }
+            workers
+                .filter { it.hasNode() && it.finished(time) }
+                .forEach { worker ->
+                    finishNode(worker.finish(), tmpNext)
+                    busyCount--
+                }
 
-                        if (worker.finished(time) && !readyNodes(tmpNext).isEmpty()) {
-                            worker.start(time, startNode(tmpNext))
-                            busyCount++
-                        }
+            workers
+                .filter { !it.hasNode() }
+                .forEach { worker ->
+                    if (!readyNodes(tmpNext).isEmpty()) {
+                        worker.start(time, startNode(tmpNext))
+                        busyCount++
                     }
+                }
         }
 
         rootNode.resetState()
-        return time
+        return time - 1
     }
 
     private fun startNode(tmpNext: MutableSet<Node>): Node {
@@ -186,5 +171,15 @@ data class Worker(val id: Int) {
         currentNode = node
         finishTime = time + node.completionTime
     }
+
+    val nodeOrDefault: Char
+        get() {
+            return currentNode?.letter ?: '.'
+        }
+
+    override fun toString(): String {
+        return "Worker(id=$id, currentNode=$nodeOrDefault)"
+    }
+
 
 }
