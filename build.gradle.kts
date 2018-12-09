@@ -7,7 +7,8 @@ plugins {
 dependencies {
     compile(kotlin("stdlib-jdk8"))
     testCompile(kotlin("test"))
-    testCompile(kotlin("test-junit"))
+    testCompile(kotlin("test-junit5"))
+    testCompile("org.junit.jupiter:junit-jupiter-params:5.0.0")
 }
 
 repositories {
