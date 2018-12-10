@@ -1,23 +1,16 @@
 package day10
 
-import java.io.File
-import java.nio.file.Files
-import java.nio.file.Path
-
 val pattern = "position=< ?(-?\\d+), +(-?\\d+)> velocity=< ?(-?\\d+), +(-?\\d+)>".toRegex()
 
-class StarMessage(val id: String, val maxIterations: Int, points: List<String>) {
+class StarMessage(id: String, private val maxIterations: Int, points: List<String>, private val textHeight: Int = 10) {
 
-    val initialStars: List<Star> = points
+    private val initialStars: List<Star> = points
             .asSequence()
             .map { pattern.matchEntire(it)!!.destructured }
             .map { (x, y, vx, vy) -> Star(x.toInt(), y.toInt(), vx.toInt(), vy.toInt()) }
             .toList()
 
-    private val basePath = "src/main/resources/day10/output/$id"
-
-    fun getBestMessageDays() {
-        val basePath = prepareDirectory()
+    fun getBestMessageDays(): Pair<Int, List<String>> {
 
         val currentStars = initialStars.map { it.copy() }
 
@@ -33,8 +26,7 @@ class StarMessage(val id: String, val maxIterations: Int, points: List<String>) 
             val height = maxY - minY + 1
             val width = maxX - minX + 1
 
-
-            if (height < 20) {
+            if (height <= textHeight) {
                 val grid: Array<CharArray> = Array(height) { CharArray(width) { ' ' } }
 
                 currentStars.forEach {
@@ -45,26 +37,13 @@ class StarMessage(val id: String, val maxIterations: Int, points: List<String>) 
                 val hasBlankColumns = hasBlankColumns(grid)
 
                 if (!hasBlankLines && hasBlankColumns) {
-                    println("Result found at iteration $i")
-                    Files.write(File("$basePath/$i.out").toPath(), grid.map { it.joinToString("") })
+                    val map = grid.map { it.joinToString("") }
+                    return Pair(i , map)
                 }
             }
         }
-    }
 
-    private fun prepareDirectory(): File {
-        val basePath = File(basePath)
-
-        if (basePath.exists()) {
-            Files.walk(basePath.toPath())
-                    .sorted(Comparator.reverseOrder())
-                    .map(Path::toFile)
-                    .peek(System.out::println)
-                    .forEach { it.delete() }
-        }
-
-        Files.createDirectories(basePath.toPath())
-        return basePath
+        throw IllegalStateException("No solution found")
     }
 
     private fun hasBlankLines(grid: Array<CharArray>) = grid.any { !it.contains('#') }
