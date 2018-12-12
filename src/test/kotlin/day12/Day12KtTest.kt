@@ -30,23 +30,18 @@ internal class Day12KtTest {
 
         assertEquals(3061, calculatePlantsA)
         println("A: $calculatePlantsA")
+        println()
 
         //This is not correct
-        val calcualteTest = calculatePlants(lines, 159)
-
+        val calcualteTest = calculatePlants(lines, 160)
         println("Test: $calcualteTest")
+        println()
 
         //This is not correct
         val calculatePlantsB = calculatePlants(lines, 50_000_000_000)
-        assertNotEquals(5467L, calculatePlantsB)
-        assertGreaterThan(6432L, calculatePlantsB)
-        assertGreaterThan(16881L, calculatePlantsB)
-        assertNotEquals(8099999996145, calculatePlantsB)
+        assertEquals(4_049_999_998_575, calculatePlantsB)
+
 
         println("B: $calculatePlantsB")
-    }
-
-    private fun <T : Comparable<T>> assertGreaterThan(expected: T, actual: T) {
-        assertTrue(actual > expected, "Expected $actual to be > $expected")
     }
 }

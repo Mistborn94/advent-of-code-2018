@@ -2,7 +2,7 @@ package day12
 
 const val PADDING_SIZE = 4
 
-fun calculatePlants(lines: List<String>, generation: Long): Long {
+fun calculatePlants(lines: List<String>, generations: Long): Long {
     val paddingString = ".".repeat(PADDING_SIZE)
     val initialState = paddingString + lines[0].substring(15) + paddingString
     var currentPattern = initialState
@@ -17,11 +17,11 @@ fun calculatePlants(lines: List<String>, generation: Long): Long {
 
     //This might not be sufficient. What if the same but just shifted?? Is that possible
     val seenStates = mutableListOf<SeenState>()
-    var iteration = 0
+    var iteration = 0L
 
-    var currentState = SeenState.buildWithLeftmostIndex(leftmostPlantIndex, currentPattern, 0)
+    var currentState = SeenState.buildWithLeftmostIndex(leftmostPlantIndex, currentPattern, iteration)
 
-    while (iteration < generation && !seenStates.any(currentState::patternMatch)) {
+    while (iteration < generations && !seenStates.any(currentState::patternMatch)) {
         seenStates.add(currentState)
         iteration++
 
@@ -48,35 +48,36 @@ fun calculatePlants(lines: List<String>, generation: Long): Long {
         }
 
         currentPattern = newState.toString()
-        currentState = SeenState.buildWithLeftmostIndex(firstLivingIndex.toLong(), currentPattern, iteration.toLong())
+        currentState = SeenState.buildWithLeftmostIndex(leftmostPlantIndex, currentPattern, iteration)
     }
 
     //println("$iteration: $trimmedState")
-    if (iteration < generation) {
+    if (iteration < generations) {
 
         val startIndex = seenStates.indexOfFirst(currentState::patternMatch)
 
         val loopSize = iteration - startIndex
         val startState = seenStates[startIndex]
 
-        val loopPosition = (generation - iteration) % loopSize
+        val loopPosition = (generations - iteration) % loopSize
 
         val matchingIndex = loopPosition + startIndex
         val matchingState = seenStates[matchingIndex.toInt()]
         println("Match  : $matchingState")
         println("Current: $currentState")
-        println("Loop size: $loopSize")
 
         if (currentState.firstIndex == startState.firstIndex) {
             return currentState.getValue()
         } else {
             val changePerGeneration = currentState.firstIndex - matchingState.firstIndex
-            val generationCount = generation - matchingState.iteration
+            val generationCount = generations - matchingState.iteration
             val totalChange = generationCount * changePerGeneration
 
+            currentState = SeenState.buildWithFirstPlantIndex(totalChange + matchingState.firstIndex, currentPattern, generations)
+            println("New    : $currentState")
+
+            println("Loop size: $loopSize")
             println("Change: $changePerGeneration x $generationCount generations => $totalChange")
-            leftmostPlantIndex = totalChange + matchingState.firstIndex
-            currentState = SeenState.buildWithFirstPlantIndex(leftmostPlantIndex, currentPattern, generation)
         }
     }
 
@@ -96,7 +97,7 @@ data class SeenState private constructor(val iteration: Long, val firstIndex: Lo
             return SeenState(iteration, firstPlantIndex, untrimmedPattern.trim('.'))
         }
 
-        fun findPlantIndex(listIndex: Int, firstPlantIndex: Long) = listIndex + firstPlantIndex - 1
+        fun findPlantIndex(listIndex: Int, firstPlantIndex: Long) = listIndex + firstPlantIndex
     }
 
     fun patternMatch(other: SeenState): Boolean {
