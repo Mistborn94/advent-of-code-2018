@@ -1,53 +1,68 @@
 package day13
 
-class Map(val tracks: List<List<PathSegment?>>, val carts: MutableList<Triple<Int, Int, Direction>>, val log: Boolean = false) {
+class Map(
+    private val tracks: List<List<PathSegment?>>,
+    private val cartLocations: MutableList<Triple<Int, Int, Direction>>,
+    private val log: Boolean = false
+) {
 
     private val cartComparator = Comparator.comparing { c: Cart -> c.y }
         .thenComparing { c: Cart -> c.x }
 
     fun findFirstCrashLocation(): Pair<Int, Int> {
-        return move().firstCollision
+        var firstCollision: Pair<Int, Int>? = null
+        val carts = buildCarts()
+
+        while (firstCollision == null) {
+            printMap(carts)
+            firstCollision = tick(carts, firstCollision)
+        }
+
+        printMap(carts)
+
+        return firstCollision
     }
 
     fun findLastCartLocation(): Pair<Int, Int>? {
-        return move().lastCart
-    }
+        val carts = buildCarts()
 
-    private fun move(): Status {
-        var iteration = 0
-        var firstCollision: Pair<Int, Int>? = null
-        val sortedCarts = carts.map { Cart(it.first, it.second, it.third) }.sortedWith(cartComparator).toMutableList()
-
-        while (sortedCarts.count { !it.crashed } > 1) {
-            printMap(iteration, sortedCarts)
-            for (cart in sortedCarts) {
-                if (!cart.crashed) {
-                    val track =
-                        tracks[cart.y][cart.x] ?: throw IllegalStateException("No track at ${cart.x}, ${cart.y}")
-
-                    track.move(cart)
-                    val colliding = findCollisions(sortedCarts, cart)
-                    val crashed = colliding.isNotEmpty()
-
-                    if (crashed) {
-                        firstCollision = firstCollision ?: cart.position
-                        cart.crashed = true
-                        sortedCarts.filter { it.position == cart.position }.forEach { it.crashed = true }
-                    }
-                }
-            }
-
-            sortedCarts.sortWith(cartComparator)
-            iteration++
+        while (carts.count { !it.crashed } > 1) {
+            printMap(carts)
+            tick(carts, null)
         }
 
-        printMap(iteration, sortedCarts)
+        printMap(carts)
 
-        return Status(firstCollision!!, sortedCarts.firstOrNull { !it.crashed }?.position)
+        return carts.firstOrNull { !it.crashed }?.position
     }
 
+    private fun tick(carts: List<Cart>, firstCollision: Pair<Int, Int>?): Pair<Int, Int>? {
+        var firstTickCollision = firstCollision
+
+        for (cart in carts.sortedWith(cartComparator)) {
+            if (!cart.crashed) {
+                val track =
+                    tracks[cart.y][cart.x] ?: throw IllegalStateException("No track at ${cart.x}, ${cart.y}")
+
+                track.move(cart)
+                val collisions = findCollisions(carts, cart)
+                val crashed = collisions.isNotEmpty()
+
+                if (crashed) {
+                    firstTickCollision = firstTickCollision ?: cart.position
+                    cart.crashed = true
+                    carts.filter { it.position == cart.position }.forEach { it.crashed = true }
+                }
+            }
+        }
+        return firstTickCollision
+    }
+
+    private fun buildCarts() =
+        cartLocations.map { Cart(it.first, it.second, it.third) }.sortedWith(cartComparator)
+
     private fun findCollisions(
-        sortedCarts: MutableList<Cart>,
+        sortedCarts: Collection<Cart>,
         cart: Cart
     ): List<Cart> {
         val collisions = sortedCarts.filter { it.position == cart.position && !it.crashed }
@@ -55,7 +70,7 @@ class Map(val tracks: List<List<PathSegment?>>, val carts: MutableList<Triple<In
         return if (collisions.size > 1) collisions else emptyList()
     }
 
-    fun printMap(iteration: Int, carts: List<Cart>) {
+    fun printMap(carts: Collection<Cart>) {
         if (log) {
             val chars = tracks.map {
                 it.map { it?.symbol ?: ' ' }.toMutableList()
@@ -65,7 +80,6 @@ class Map(val tracks: List<List<PathSegment?>>, val carts: MutableList<Triple<In
                 chars[cart.y][cart.x] = cart.facing.symbol
             }
 
-            println("Iteration $iteration")
             chars.forEach { println(it.joinToString("")) }
             println()
         }
@@ -165,7 +179,7 @@ enum class Direction {
     abstract fun turnRight(): Direction
 }
 
-data class Cart(var x: Int, var y: Int, var facing: Direction) {
+class Cart(var x: Int, var y: Int, var facing: Direction) {
     var intersections = 0
     var crashed = false
 
@@ -238,5 +252,3 @@ class Intersection : PathSegment('+') {
         cart.moveInFacingDirection()
     }
 }
-
-data class Status(val firstCollision: Pair<Int, Int>, val lastCart: Pair<Int, Int>?)
