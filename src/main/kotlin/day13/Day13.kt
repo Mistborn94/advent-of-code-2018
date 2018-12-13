@@ -1,103 +1,83 @@
 package day13
 
-class Map(val tracks: List<List<PathSegment?>>, val carts: List<Cart>) {
+class Map(val tracks: List<List<PathSegment?>>, val carts: MutableList<Triple<Int, Int, Direction>>, val log: Boolean = false) {
 
     private val cartComparator = Comparator.comparing { c: Cart -> c.y }
-            .thenComparing { c: Cart -> c.x }
-
-    fun reset() {
-        carts.forEach { it.reset() }
-    }
+        .thenComparing { c: Cart -> c.x }
 
     fun findFirstCrashLocation(): Pair<Int, Int> {
-        reset()
+        return move().firstCollision
+    }
+
+    fun findLastCartLocation(): Pair<Int, Int>? {
+        return move().lastCart
+    }
+
+    private fun move(): Status {
         var iteration = 0
-        val sortedCarts = carts.sortedWith(cartComparator).toMutableList()
-        while (true) {
+        var firstCollision: Pair<Int, Int>? = null
+        val sortedCarts = carts.map { Cart(it.first, it.second, it.third) }.sortedWith(cartComparator).toMutableList()
 
-            val cartLocations = mutableSetOf<Pair<Int, Int>>()
-
-            cartLocations.addAll(sortedCarts.map {Pair(it.x, it.y) })
-
+        while (sortedCarts.count { !it.crashed } > 1) {
+            printMap(iteration, sortedCarts)
             for (cart in sortedCarts) {
-                val oldLocation = Pair(cart.x, cart.y)
-                cartLocations.remove(oldLocation)
+                if (!cart.crashed) {
+                    val track =
+                        tracks[cart.y][cart.x] ?: throw IllegalStateException("No track at ${cart.x}, ${cart.y}")
 
-                val track = tracks[cart.y][cart.x] ?: throw IllegalStateException("No track at ${cart.x}, ${cart.y}")
+                    track.move(cart)
+                    val colliding = findCollisions(sortedCarts, cart)
+                    val crashed = colliding.isNotEmpty()
 
-                track.move(cart)
-                val element = Pair(cart.x, cart.y)
-                val added = cartLocations.add(element)
-
-                if (!added) {
-                    return element
+                    if (crashed) {
+                        firstCollision = firstCollision ?: cart.position
+                        cart.crashed = true
+                        sortedCarts.filter { it.position == cart.position }.forEach { it.crashed = true }
+                    }
                 }
             }
 
             sortedCarts.sortWith(cartComparator)
             iteration++
         }
+
+        printMap(iteration, sortedCarts)
+
+        return Status(firstCollision!!, sortedCarts.firstOrNull { !it.crashed }?.position)
+    }
+
+    private fun findCollisions(
+        sortedCarts: MutableList<Cart>,
+        cart: Cart
+    ): List<Cart> {
+        val collisions = sortedCarts.filter { it.position == cart.position && !it.crashed }
+
+        return if (collisions.size > 1) collisions else emptyList()
     }
 
     fun printMap(iteration: Int, carts: List<Cart>) {
-        val chars = tracks.map {
-            it.map { it?.symbol ?: ' ' }.toMutableList()
-        }.toMutableList()
+        if (log) {
+            val chars = tracks.map {
+                it.map { it?.symbol ?: ' ' }.toMutableList()
+            }.toMutableList()
 
-        for (cart in carts) {
-            chars[cart.y][cart.x] = cart.facing.symbol
+            for (cart in carts.filter { !it.crashed }) {
+                chars[cart.y][cart.x] = cart.facing.symbol
+            }
+
+            println("Iteration $iteration")
+            chars.forEach { println(it.joinToString("")) }
+            println()
         }
-
-        println("Iteration $iteration")
-        chars.forEach { println(it.joinToString ("" )) }
-        println()
     }
 
     companion object {
         fun build(lines: List<String>): Map {
-            val carts = mutableListOf<Cart>()
+            val carts = mutableListOf<Triple<Int, Int, Direction>>()
 
             val path = lines.mapIndexed { y, line ->
                 line.mapIndexed { x, char ->
-                    when (char) {
-                        ' ' -> null
-                        '-', '|' -> StraightPath(char)
-                        '+' -> Intersection(char)
-                        '>' -> {
-                            carts.add(Cart(x, y, Direction.RIGHT)); StraightPath('-')
-                        }
-                        '<' -> {
-                            carts.add(Cart(x, y, Direction.LEFT)); StraightPath('-')
-                        }
-                        '^' -> {
-                            carts.add(Cart(x, y, Direction.UP)); StraightPath('|')
-                        }
-                        'v' -> {
-                            carts.add(Cart(x, y, Direction.DOWN)); StraightPath('|')
-                        }
-                        '/' ->{
-                            val (horizontal, vertical) = if (x == 0 || !connectsHorizontally(lines[y][x - 1])) {
-                                Pair(Direction.RIGHT, Direction.DOWN)
-                            } else {
-                                Pair(Direction.LEFT, Direction.UP)
-                            }
-
-                            CurvedPath(vertical, horizontal, char)
-                        }
-
-                            '\\' -> {
-                                val (horizontal, vertical) = if (x == 0 || !connectsHorizontally(lines[y][x - 1])) {
-                                    Pair(Direction.RIGHT, Direction.UP)
-                                } else {
-                                    Pair(Direction.LEFT, Direction.DOWN)
-                                }
-
-                            CurvedPath(vertical, horizontal, char)
-                        }
-
-                        else -> throw IllegalArgumentException("Unknown Character $char")
-
-                    }
+                    pathSegment(char, x, y, carts)
                 }
 
             }
@@ -105,8 +85,30 @@ class Map(val tracks: List<List<PathSegment?>>, val carts: List<Cart>) {
             return Map(path, carts)
         }
 
-        private fun connectsHorizontally(c: Char): Boolean {
-            return setOf('-', '>', '<', '+').contains(c)
+        private fun pathSegment(
+            char: Char, x: Int, y: Int, carts: MutableList<Triple<Int, Int, Direction>>
+        ): PathSegment? {
+            return when (char) {
+                ' ' -> null
+                '-', '|' -> StraightPath(char)
+                '+' -> Intersection()
+                '/' -> CurvedTopRight()
+                '\\' -> CurvedTopLeft()
+                '>' -> {
+                    carts.add(Triple(x, y, Direction.RIGHT)); StraightPath('-')
+                }
+                '<' -> {
+                    carts.add(Triple(x, y, Direction.LEFT)); StraightPath('-')
+                }
+                '^' -> {
+                    carts.add(Triple(x, y, Direction.UP)); StraightPath('|')
+                }
+                'v' -> {
+                    carts.add(Triple(x, y, Direction.DOWN)); StraightPath('|')
+                }
+
+                else -> throw IllegalArgumentException("Unknown Character $char")
+            }
         }
     }
 }
@@ -164,16 +166,11 @@ enum class Direction {
 }
 
 data class Cart(var x: Int, var y: Int, var facing: Direction) {
-    val initialX = x
-    val initialY = y
-    val intialFacing = facing
-
     var intersections = 0
+    var crashed = false
 
-    private val newDirections = listOf(
-            { this.facing.turnLeft() },
-            { this.facing },
-            { this.facing.turnRight() })
+    val position: Pair<Int, Int>
+        get() = Pair(x, y)
 
     fun moveInFacingDirection() {
         x = facing.moveX(x)
@@ -181,14 +178,14 @@ data class Cart(var x: Int, var y: Int, var facing: Direction) {
     }
 
     fun handleIntersection() {
-        val instructionIndex = intersections++ % 3
-        this.facing = newDirections[instructionIndex]()
-    }
+        facing = when (intersections) {
+            0 -> facing.turnLeft()
+            1 -> facing
+            2 -> facing.turnRight()
+            else -> throw Exception()
+        }
 
-    fun reset() {
-        x = initialX
-        y = initialY
-        facing = intialFacing
+        intersections = (intersections + 1) % 3
     }
 }
 
@@ -208,23 +205,38 @@ class StraightPath(symbol: Char) : PathSegment(symbol) {
     }
 }
 
-class CurvedPath(private val verticalDirection: Direction, private val horizontalDirection: Direction, symbol: Char) : PathSegment(symbol) {
+class CurvedTopLeft : PathSegment('\'') {
 
     override fun move(cart: Cart) {
         if (cart.facing.horizontal) {
-            cart.facing = verticalDirection
+            cart.facing = cart.facing.turnRight()
         } else {
-            cart.facing = horizontalDirection
+            cart.facing = cart.facing.turnLeft()
         }
 
         cart.moveInFacingDirection()
     }
 }
 
-class Intersection(symbol: Char) : PathSegment(symbol) {
+class CurvedTopRight : PathSegment('/') {
+
+    override fun move(cart: Cart) {
+        if (cart.facing.horizontal) {
+            cart.facing = cart.facing.turnLeft()
+        } else {
+            cart.facing = cart.facing.turnRight()
+        }
+
+        cart.moveInFacingDirection()
+    }
+}
+
+class Intersection : PathSegment('+') {
 
     override fun move(cart: Cart) {
         cart.handleIntersection()
         cart.moveInFacingDirection()
     }
 }
+
+data class Status(val firstCollision: Pair<Int, Int>, val lastCart: Pair<Int, Int>?)
