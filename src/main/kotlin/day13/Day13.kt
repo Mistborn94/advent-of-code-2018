@@ -12,14 +12,17 @@ class Map(val tracks: List<List<PathSegment?>>, val carts: List<Cart>) {
     fun findFirstCrashLocation(): Pair<Int, Int> {
         reset()
         var iteration = 0
+        val sortedCarts = carts.sortedWith(cartComparator).toMutableList()
         while (true) {
-//            printMap(iteration, carts)
-
-            val sortedCarts = carts.sortedWith(cartComparator)
 
             val cartLocations = mutableSetOf<Pair<Int, Int>>()
 
+            cartLocations.addAll(sortedCarts.map {Pair(it.x, it.y) })
+
             for (cart in sortedCarts) {
+                val oldLocation = Pair(cart.x, cart.y)
+                cartLocations.remove(oldLocation)
+
                 val track = tracks[cart.y][cart.x] ?: throw IllegalStateException("No track at ${cart.x}, ${cart.y}")
 
                 track.move(cart)
@@ -31,6 +34,7 @@ class Map(val tracks: List<List<PathSegment?>>, val carts: List<Cart>) {
                 }
             }
 
+            sortedCarts.sortWith(cartComparator)
             iteration++
         }
     }
@@ -71,18 +75,22 @@ class Map(val tracks: List<List<PathSegment?>>, val carts: List<Cart>) {
                         'v' -> {
                             carts.add(Cart(x, y, Direction.DOWN)); StraightPath('|')
                         }
-                        '/', '\\' -> {
-                            val horizontal = if (x == 0 || !isHorizontal(lines[y][x - 1])) {
-                                Direction.RIGHT
+                        '/' ->{
+                            val (horizontal, vertical) = if (x == 0 || !connectsHorizontally(lines[y][x - 1])) {
+                                Pair(Direction.RIGHT, Direction.DOWN)
                             } else {
-                                Direction.LEFT
+                                Pair(Direction.LEFT, Direction.UP)
                             }
 
-                            val vertical = if (y == 0 || !isVertical(lines[y - 1][x])) {
-                                Direction.DOWN
-                            } else {
-                                Direction.UP
-                            }
+                            CurvedPath(vertical, horizontal, char)
+                        }
+
+                            '\\' -> {
+                                val (horizontal, vertical) = if (x == 0 || !connectsHorizontally(lines[y][x - 1])) {
+                                    Pair(Direction.RIGHT, Direction.UP)
+                                } else {
+                                    Pair(Direction.LEFT, Direction.DOWN)
+                                }
 
                             CurvedPath(vertical, horizontal, char)
                         }
@@ -97,12 +105,8 @@ class Map(val tracks: List<List<PathSegment?>>, val carts: List<Cart>) {
             return Map(path, carts)
         }
 
-        private fun isHorizontal(c: Char): Boolean {
+        private fun connectsHorizontally(c: Char): Boolean {
             return setOf('-', '>', '<', '+').contains(c)
-        }
-
-        private fun isVertical(c: Char): Boolean {
-            return setOf('|', '^', 'v', '+').contains(c)
         }
     }
 }

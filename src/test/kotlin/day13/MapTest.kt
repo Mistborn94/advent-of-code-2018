@@ -30,7 +30,17 @@ class MapTest {
         val readLines = readInput(13).readLines()
         val map = Map.build(readLines)
 
-        assertNotEquals(Pair(55, 40), map.findFirstCrashLocation())
+        val crashLocation = map.findFirstCrashLocation()
+        assertNotEquals(Pair(55, 40), crashLocation)
+        println(crashLocation)
+    }
+
+    @Test
+    fun sample3() {
+        val readLines = listOf("->>--")
+        val map = Map.build(readLines)
+
+        assertNotEquals(Pair(0, 2), map.findFirstCrashLocation())
     }
 
 }
