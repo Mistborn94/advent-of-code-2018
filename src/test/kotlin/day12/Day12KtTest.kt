@@ -19,7 +19,6 @@ internal class Day12KtTest {
 
         val calculatePlantsB = calculatePlants(lines, 50_000_000_000)
         assertNotEquals(5467, calculatePlantsB)
-        println("B: $calculatePlantsB")
     }
 
     @Test
@@ -30,14 +29,7 @@ internal class Day12KtTest {
 
         assertEquals(3061, calculatePlantsA)
         println("A: $calculatePlantsA")
-        println()
 
-        //This is not correct
-        val calcualteTest = calculatePlants(lines, 160)
-        println("Test: $calcualteTest")
-        println()
-
-        //This is not correct
         val calculatePlantsB = calculatePlants(lines, 50_000_000_000)
         assertEquals(4_049_999_998_575, calculatePlantsB)
 
