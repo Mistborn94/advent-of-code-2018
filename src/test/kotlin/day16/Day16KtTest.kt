@@ -14,21 +14,21 @@ internal class Day16KtTest {
         val instruction = listOf(9, 2, 1, 2)
         val after = listOf(3, 2, 2, 1)
 
-        val matchingOpCodes = findMatchingOpCodes(before, after, instruction)
+        val instructionSample = InstructionSample.fromInput(before, after, instruction)
 
-        assertEquals(setOf(MULR, ADDI, SETI), matchingOpCodes)
+        assertEquals(setOf(MULR, ADDI, SETI), instructionSample.possibleOperations)
     }
 
     @Test
     fun actualInput() {
-        val lines = readInput(16).readLines()
+        val day16 = Day16(readInput(16).readLines())
 
-        val partA = solvePartA(lines)
+        val partA = day16.solvePartA()
 
         println("A: $partA")
         assertEquals(509, partA)
 
-        val partB = solvePartB(lines)
+        val partB = day16.solvePartB()
         println("B: $partB")
         assertEquals(496, partB)
     }

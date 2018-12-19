@@ -1,154 +1,99 @@
 package day16
 
-typealias Registers = List<Int>
+class Day16(lines: List<String>) {
 
-enum class TimeTravelOpCode(val description: String) {
-    ADDR("Add Register") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = registers[a] + registers[b]
-    },
-    ADDI("Add Immediate") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = registers[a] + b
-    },
-    MULR("Multiply Register") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = registers[a] * registers[b]
-    },
-    MULI("Multiply Immediate") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = registers[a] * b
-    },
-    BANR("bitwise AND register") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = registers[a] and registers[b]
-    },
-    BANI("bitwise AND immediate") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = registers[a] and b
-    },
-    BORR("bitwise AND register") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = registers[a] or registers[b]
-    },
-    BORI("bitwise AND immediate") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = registers[a] or b
-    },
-    SETR("set register") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = registers[a]
-    },
-    SETI("set immediate") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = a
-    },
-    GTIR("greater-than immediate/register") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = if (a > registers[b]) 1 else 0
-    },
-    GTRI("greater-than register/immediate") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = if (registers[a] > b) 1 else 0
-    },
-    GTRR("greater-than register/register") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = if (registers[a] > registers[b]) 1 else 0
-    },
-    ETIR("equal immediate/register") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = if (a == registers[b]) 1 else 0
-    },
-    ETRI("equal register/immediate") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = if (registers[a] == b) 1 else 0
-    },
-    ETRR("equal register/register") {
-        override fun getResult(registers: Registers, a: Int, b: Int): Int = if (registers[a] == registers[b]) 1 else 0
-    };
+    private val instructionSamples: List<InstructionSample> = parseInputSamples(lines)
+    private val parsedProgram: List<List<Int>>
 
-    protected abstract fun getResult(registers: Registers, a: Int, b: Int): Int
-
-    fun apply(registers: Registers, a: Int, b: Int, c: Int): Registers {
-        val newRegisters = registers.toMutableList()
-        newRegisters[c] = getResult(registers, a, b)
-        return newRegisters
+    init {
+        val programSubList = lines.subList(instructionSamples.size * 4 + 2, lines.size)
+        parsedProgram = parseProgram(programSubList)
     }
-}
 
-fun findMatchingOpCodes(before: Registers, after: Registers, instruction: List<Int>): Set<TimeTravelOpCode> {
-    val a = instruction[1]
-    val b = instruction[2]
-    val c = instruction[3]
+    fun solvePartA(): Int {
+        return instructionSamples.count { it.possibleOperations.size >= 3 }
+    }
 
-    return TimeTravelOpCode.values()
-        .filter {
-            it.apply(before, a, b, c) == after
-        }.toSet()
-}
+    fun solvePartB(): Int {
+        val instructionCodes = solveOperationNumbers()
+        val program = Program(instructionCodes, parsedProgram)
 
-fun solvePartA(lines: List<String>): Int {
-    val possibleOpCodes = parseInputSamples(lines)
+        return program.execute()[0]
+    }
 
-    return possibleOpCodes.count { it.possibleCodes.size >= 3 }
-}
-
-private fun parseInstructions(line: String) = line.split(" ").map { it.trim().toInt() }
-private fun parseRegisterState(s: String) = s.substring(9, 19).split(", ").map { it.trim().toInt() }
-
-fun solvePartB(lines: List<String>): Int {
-
-    val instructionSamples = parseInputSamples(lines)
-    val instructionCodes = findInstructionNumbers(instructionSamples)
-    val programSubList = lines.subList(instructionSamples.size * 4 + 2, lines.size)
-    val program = Program(instructionCodes, parseProgram(programSubList))
-
-    return program.execute()[0]
-}
-
-fun parseProgram(subList: List<String>): List<List<Int>> {
-    return subList.map { line ->
+    private fun parseInstruction(line: String) = line.split(" ").map { it.trim().toInt() }
+    private fun parseRegisterState(s: String) = s.substring(9, 19).split(", ").map { it.trim().toInt() }
+    private fun parseProgram(subList: List<String>): List<List<Int>> = subList.map { line ->
         line.split(" ").map { it.toInt() }
     }
-}
 
-private fun findInstructionNumbers(possibleOpCodes: List<InstructionSample>): Map<Int, TimeTravelOpCode> {
-    var remainingSamples = possibleOpCodes.toSet()
-    var solvedCodes = findSolved(remainingSamples)
+    private fun parseInputSamples(lines: List<String>): List<InstructionSample> {
+        val possibleOpCodes = mutableListOf<InstructionSample>()
+        var i = 0
+        while (lines[i].startsWith("Before")) {
+            val before = parseRegisterState(lines[i])
+            val instruction = parseInstruction(lines[i + 1])
+            val after = parseRegisterState(lines[i + 2])
 
-    val instructionCodes = mutableMapOf<Int, TimeTravelOpCode>()
-    while (instructionCodes.size < TimeTravelOpCode.values().size) {
-        if (solvedCodes.isEmpty() || remainingSamples.isEmpty()) {
-            throw IllegalStateException("No samples left")
+            possibleOpCodes.add(InstructionSample.fromInput(before, after, instruction))
+
+            i += 4
         }
+        return possibleOpCodes
+    }
 
-        for (solvedCode in solvedCodes) {
-            if (instructionCodes.containsKey(solvedCode.instructionNumber)) {
-                throw IllegalStateException("Duplicate Instruction Code ${solvedCode.instructionNumber}")
+    private fun solveOperationNumbers(): Map<Int, TimeTravelOpCode> {
+        var remainingSamples = instructionSamples.toSet()
+        var solvedCodes = findSolved(remainingSamples)
+
+        val instructionCodes = mutableMapOf<Int, TimeTravelOpCode>()
+        while (instructionCodes.size < TimeTravelOpCode.values().size) {
+            if (solvedCodes.isEmpty() || remainingSamples.isEmpty()) {
+                throw IllegalStateException("No samples left")
             }
 
-            instructionCodes[solvedCode.instructionNumber] = solvedCode.possibleCodes.first()
+            for (solvedCode in solvedCodes) {
+                if (instructionCodes.containsKey(solvedCode.instructionNumber)) {
+                    throw IllegalStateException("Duplicate Instruction Code ${solvedCode.instructionNumber}")
+                }
+
+                instructionCodes[solvedCode.instructionNumber] = solvedCode.possibleOperations.first()
+            }
+
+            remainingSamples = remainingSamples
+                .subtract(solvedCodes)
+                .filter { !instructionCodes.containsKey(it.instructionNumber) }
+                .map { it.withRemoved(instructionCodes.values) }
+                .toSet()
+
+            solvedCodes = findSolved(remainingSamples)
         }
-
-        remainingSamples = remainingSamples
-            .subtract(solvedCodes)
-            .filter { !instructionCodes.containsKey(it.instructionNumber) }
-            .map { it.withRemoved(instructionCodes.values) }
-            .toSet()
-
-        solvedCodes = findSolved(remainingSamples)
+        return instructionCodes
     }
-    return instructionCodes
+
+    private fun findSolved(possibleOpCodes: Set<InstructionSample>) =
+        possibleOpCodes.filter { it.possibleOperations.size == 1 }
+
 }
 
-private fun findSolved(possibleOpCodes: Set<InstructionSample>) =
-    possibleOpCodes.filter { it.possibleCodes.size == 1 }
-
-private fun parseInputSamples(lines: List<String>): List<InstructionSample> {
-    val possibleOpCodes = mutableListOf<InstructionSample>()
-    var i = 0
-    while (lines[i].startsWith("Before")) {
-        val before = parseRegisterState(lines[i])
-        val instructions = parseInstructions(lines[i + 1])
-        val after = parseRegisterState(lines[i + 2])
-
-        val validCodes = findMatchingOpCodes(before, after, instructions)
-        possibleOpCodes.add(InstructionSample(instructions[0], validCodes))
-
-        i += 4
-    }
-    return possibleOpCodes
-}
-
-data class InstructionSample(val instructionNumber: Int, val possibleCodes: Collection<TimeTravelOpCode>) {
+data class InstructionSample(val instructionNumber: Int, val possibleOperations: Collection<TimeTravelOpCode>) {
 
     fun withRemoved(solvedCodes: Collection<TimeTravelOpCode>): InstructionSample {
-        return InstructionSample(instructionNumber, possibleCodes.subtract(solvedCodes))
+        return InstructionSample(instructionNumber, possibleOperations.subtract(solvedCodes))
+    }
+
+    companion object {
+        fun fromInput(before: List<Int>, after: List<Int>, instruction: List<Int>): InstructionSample {
+            val a = instruction[1]
+            val b = instruction[2]
+            val c = instruction[3]
+
+            val possibleOperations = TimeTravelOpCode.values()
+                .filter {
+                    it.apply(before, a, b, c) == after
+                }.toSet()
+            return InstructionSample(instruction[0], possibleOperations)
+        }
     }
 }
 
@@ -161,11 +106,11 @@ class Program(instructionCodes: Map<Int, TimeTravelOpCode>, instructions: List<L
             val b = it[2]
             val c = it[3]
             val operation = instructionCodes[it[0]]
-            Instruction(a, b, c, operation!!)
+            Instruction(operation!!, a, b, c)
         }
     }
 
-    fun execute(initialState: Registers = listOf(0, 0, 0, 0)): Registers {
+    fun execute(initialState: List<Int> = listOf(0, 0, 0, 0)): List<Int> {
 
         var currentRegister = initialState
         for (instruction in instructions) {
@@ -173,13 +118,6 @@ class Program(instructionCodes: Map<Int, TimeTravelOpCode>, instructions: List<L
         }
 
         return currentRegister
-    }
-}
-
-data class Instruction(val a: Int, val b: Int, val c: Int, val operation: TimeTravelOpCode) {
-
-    fun execute(registers: Registers): Registers {
-        return operation.apply(registers, a, b, c)
     }
 }
 
