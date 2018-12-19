@@ -44,35 +44,31 @@ class Day16(lines: List<String>) {
 
     private fun solveOperationNumbers(): Map<Int, TimeTravelOpCode> {
         var remainingSamples = instructionSamples.toSet()
-        var solvedCodes = findSolved(remainingSamples)
+        var solvableCodes = findSingleOperations(remainingSamples)
 
-        val instructionCodes = mutableMapOf<Int, TimeTravelOpCode>()
-        while (instructionCodes.size < TimeTravelOpCode.values().size) {
-            if (solvedCodes.isEmpty() || remainingSamples.isEmpty()) {
+        val operationCodes = mutableMapOf<Int, TimeTravelOpCode>()
+        while (operationCodes.size < TimeTravelOpCode.count()) {
+            if (solvableCodes.isEmpty() || remainingSamples.isEmpty()) {
                 throw IllegalStateException("No samples left")
             }
 
-            for (solvedCode in solvedCodes) {
-                if (instructionCodes.containsKey(solvedCode.instructionNumber)) {
-                    throw IllegalStateException("Duplicate Instruction Code ${solvedCode.instructionNumber}")
-                }
-
-                instructionCodes[solvedCode.instructionNumber] = solvedCode.possibleOperations.first()
+            solvableCodes.forEach {
+                operationCodes[it.instructionNumber] = it.possibleOperations.first()
             }
 
             remainingSamples = remainingSamples
-                .subtract(solvedCodes)
-                .filter { !instructionCodes.containsKey(it.instructionNumber) }
-                .map { it.withRemoved(instructionCodes.values) }
+                .subtract(solvableCodes)
+                .filter { !operationCodes.containsKey(it.instructionNumber) }
+                .map { it.withRemoved(operationCodes.values) }
                 .toSet()
 
-            solvedCodes = findSolved(remainingSamples)
+            solvableCodes = findSingleOperations(remainingSamples)
         }
-        return instructionCodes
+        return operationCodes
     }
 
-    private fun findSolved(possibleOpCodes: Set<InstructionSample>) =
-        possibleOpCodes.filter { it.possibleOperations.size == 1 }
+    private fun findSingleOperations(samples: Set<InstructionSample>) =
+        samples.filter { it.possibleOperations.size == 1 }
 
 }
 
@@ -110,14 +106,8 @@ class Program(instructionCodes: Map<Int, TimeTravelOpCode>, instructions: List<L
         }
     }
 
-    fun execute(initialState: List<Int> = listOf(0, 0, 0, 0)): List<Int> {
-
-        var currentRegister = initialState
-        for (instruction in instructions) {
-            currentRegister = instruction.execute(currentRegister)
-        }
-
-        return currentRegister
+    fun execute(initialRegister: List<Int> = listOf(0, 0, 0, 0)): List<Int> {
+        return instructions.fold(initialRegister) { registers, instruction-> instruction.execute(registers)}
     }
 }
 

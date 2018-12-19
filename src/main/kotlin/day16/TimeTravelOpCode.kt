@@ -40,13 +40,13 @@ enum class TimeTravelOpCode(val description: String) {
     GTRR("greater-than register/register") {
         override fun getResult(registers: List<Int>, a: Int, b: Int): Int = if (registers[a] > registers[b]) 1 else 0
     },
-    ETIR("equal immediate/register") {
+    EQIR("equal immediate/register") {
         override fun getResult(registers: List<Int>, a: Int, b: Int): Int = if (a == registers[b]) 1 else 0
     },
-    ETRI("equal register/immediate") {
+    EQRI("equal register/immediate") {
         override fun getResult(registers: List<Int>, a: Int, b: Int): Int = if (registers[a] == b) 1 else 0
     },
-    ETRR("equal register/register") {
+    EQRR("equal register/register") {
         override fun getResult(registers: List<Int>, a: Int, b: Int): Int = if (registers[a] == registers[b]) 1 else 0
     };
 
@@ -58,9 +58,15 @@ enum class TimeTravelOpCode(val description: String) {
         return newRegisters
     }
 
+    fun  applyMutable(registers: MutableList<Int>, a: Int, b: Int, c: Int) {
+        registers[c] = getResult(registers, a, b).toInt()
+    }
+
     companion object {
-        fun fromOperatinString(operation: String): TimeTravelOpCode {
+        fun fromOperationString(operation: String): TimeTravelOpCode {
             return TimeTravelOpCode.valueOf(operation.toUpperCase())
         }
+
+        fun count(): Int = values().size
     }
 }
