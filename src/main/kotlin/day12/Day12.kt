@@ -7,38 +7,41 @@ fun calculatePlants(lines: List<String>, generations: Long): Long {
 
     val instructions = parseInstructions(lines.subList(2, lines.size))
 
-    val seenStates = mutableListOf<SeenState>()
-    var iteration = 0L
+    val seenStates = mutableListOf<TrimmedState>()
+    var iteration = 0
 
-    var currentState = SeenState.buildWithLeftmostIndex(leftmostPotIndex, currentPattern, iteration)
+    var currentState = TrimmedState.buildWithLeftmostIndex(leftmostPotIndex, currentPattern, iteration)
 
-    while (iteration < generations && !seenStates.any(currentState::patternMatch)) {
-        seenStates.add(currentState)
+    do {
         iteration++
 
+        //Transform
+        val padResult = currentState.padded()
         val newState = processInstructions(currentPattern, instructions)
-
-        leftmostPotIndex = pad(newState, leftmostPotIndex)
-
+        leftmostPotIndex += pad(newState)
         currentPattern = newState.toString()
-        currentState = SeenState.buildWithLeftmostIndex(leftmostPotIndex, currentPattern, iteration)
-    }
+        seenStates.add(currentState)
+        currentState = TrimmedState.buildWithLeftmostIndex(leftmostPotIndex, currentPattern, iteration)
+
+    } while (iteration < generations && !seenStates.any(currentState::patternMatch))
 
     if (iteration < generations) {
         val startIndex = seenStates.indexOfFirst(currentState::patternMatch)
 
         val loopSize = iteration - startIndex
 
-        val loopPosition = (generations - iteration) % loopSize
-
-        val matchingIndex = loopPosition + startIndex
-        val matchingState = seenStates[matchingIndex.toInt()]
+        val matchingIndex = ((generations - iteration) % loopSize + startIndex).toInt()
+        val matchingState = seenStates[matchingIndex]
 
         val changePerGeneration = currentState.firstIndex - matchingState.firstIndex
         val totalChange = changePerGeneration * (generations - matchingState.iteration)
 
         currentState =
-                SeenState.buildWithFirstPlantIndex(totalChange + matchingState.firstIndex, currentPattern, generations)
+                TrimmedState.buildWithFirstPlantIndex(
+                    totalChange + matchingState.firstIndex,
+                    currentPattern,
+                    0
+                )
 
     }
 
@@ -47,9 +50,9 @@ fun calculatePlants(lines: List<String>, generations: Long): Long {
 
 private fun getInitialState(lines: List<String>): Pair<String, Long> {
     val initialStateBuilder = StringBuilder(lines[0].substring(15))
-    val leftmostPotIndex = pad(initialStateBuilder, 0)
+    val leftmostPotIndex = pad(initialStateBuilder)
 
-    return Pair(initialStateBuilder.toString(), leftmostPotIndex)
+    return Pair(initialStateBuilder.toString(), leftmostPotIndex.toLong())
 }
 
 private fun parseInstructions(list: List<String>): MutableMap<String, Char> {
@@ -76,7 +79,7 @@ private fun processInstructions(
     return newState
 }
 
-private fun pad(newState: StringBuilder, leftmostPotIndex: Long): Long {
+private fun pad(newState: StringBuilder): Int {
     val lastLivingIndex = newState.lastIndex - newState.lastIndexOf('#')
     if (lastLivingIndex < PADDING_SIZE) {
         val addCount = PADDING_SIZE - lastLivingIndex
@@ -87,30 +90,30 @@ private fun pad(newState: StringBuilder, leftmostPotIndex: Long): Long {
     if (firstLivingIndex < PADDING_SIZE) {
         val addCount = PADDING_SIZE - firstLivingIndex
         newState.insert(0, ".".repeat(addCount))
-        return leftmostPotIndex - addCount
+        return -addCount
     }
 
-    return leftmostPotIndex
+    return 0
 }
 
 
-data class SeenState constructor(val iteration: Long, val firstIndex: Long, val pattern: String) {
+data class TrimmedState(val firstIndex: Long, val pattern: String, val iteration: Int) {
 
     companion object {
-        fun buildWithLeftmostIndex(leftmostIndex: Long, untrimmedPattern: String, iteration: Long): SeenState {
+        fun buildWithLeftmostIndex(leftmostIndex: Long, untrimmedPattern: String, iteration: Int): TrimmedState {
             val firstPlantIndex = findPlantIndex(untrimmedPattern.indexOf('#'), leftmostIndex)
 
-            return SeenState(iteration, firstPlantIndex, untrimmedPattern.trim('.'))
+            return TrimmedState(firstPlantIndex, untrimmedPattern.trim('.'), iteration)
         }
 
-        fun buildWithFirstPlantIndex(firstPlantIndex: Long, untrimmedPattern: String, iteration: Long): SeenState {
-            return SeenState(iteration, firstPlantIndex, untrimmedPattern.trim('.'))
+        fun buildWithFirstPlantIndex(firstPlantIndex: Long, untrimmedPattern: String, iteration: Int): TrimmedState {
+            return TrimmedState(firstPlantIndex, untrimmedPattern.trim('.'), iteration)
         }
 
         fun findPlantIndex(listIndex: Int, firstPlantIndex: Long) = listIndex + firstPlantIndex
     }
 
-    fun patternMatch(other: SeenState): Boolean {
+    fun patternMatch(other: TrimmedState): Boolean {
         return pattern == other.pattern
     }
 
@@ -124,4 +127,20 @@ data class SeenState constructor(val iteration: Long, val firstIndex: Long, val 
 
         return total
     }
+
+    fun padded(): PaddedState = PaddedState.buildAndPad(firstIndex, pattern, iteration)
+}
+
+data class PaddedState constructor(val firstIndex: Long, val pattern: String, val iteration: Int) {
+
+    companion object {
+        fun buildAndPad(firstIndex: Long, pattern: String, iteration: Int): PaddedState {
+            val newStateBuilder = StringBuilder(pattern)
+
+            val added = pad(newStateBuilder)
+            return PaddedState(added + firstIndex, newStateBuilder.toString(), iteration)
+        }
+    }
+
+    fun trimmed(): TrimmedState = TrimmedState.buildWithLeftmostIndex(firstIndex, pattern, iteration)
 }
