@@ -22,7 +22,7 @@ class Day19(lines: List<String>) {
     }
 
     private fun executeProgram(registers: MutableList<Int>, shortcut: Boolean = false) {
-        var instructionPointer = registers[instructionRegister].toInt()
+        var instructionPointer = registers[instructionRegister]
 
         while (instructionPointer in instructions.indices) {
             //This part is specifically crafted for my input :(
