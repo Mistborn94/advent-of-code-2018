@@ -1,6 +1,7 @@
 package day15
 
 import java.util.Comparator.comparing
+import kotlin.math.min
 
 data class Point(val x: Int, val y: Int)
 
@@ -24,7 +25,7 @@ class Combat(boardLines: List<String>) {
         board = boardLines.mapIndexed { y, line ->
             line.mapIndexed { x, char ->
                 when (char) {
-                    '#' -> WallCell
+                    '#' -> Cell(Point(x, y), char)
                     '.' -> EmptyCell(Point(x, y))
                     'G', 'E' -> Unit(Point(x, y), char)
                     else -> throw IllegalArgumentException("Unknown cell $char at ($x,$y)")
@@ -95,46 +96,51 @@ class Combat(boardLines: List<String>) {
         return "Round $rounds\n" + board.chunked(width).joinToString("\n") { it.joinToString("") } + "\n"
     }
 
-    abstract class Cell {
-        abstract val position: Point
-        abstract fun moveTowards(enemiesOf: Char): Pair<Cell, Int>?
+    open class Cell(var position: Point, val type: Char) {
+        open fun moveTowards(enemiesOf: Char, currentDepth: Int = 0, bestDepth: Int = Int.MAX_VALUE): Pair<Cell, Int>? {
+            return null
+        }
+
+        override fun toString(): String = type.toString()
     }
 
-    inner class EmptyCell(override val position: Point) : Cell() {
-        override fun toString(): String = "."
+    inner class EmptyCell(position: Point) : Cell(position, '.') {
+
         var inPath = false
 
-        override fun moveTowards(enemiesOf: Char): Pair<Cell, Int>? {
+        override fun moveTowards(enemiesOf: Char, currentDepth: Int, bestDepth: Int): Pair<Cell, Int>? {
             if (inPath) {
+                return null
+            }
+
+            if (currentDepth > bestDepth) {
                 return null
             }
 
             inPath = true
 
             val adjacentCells = adjacentCells(position)
-            val subPaths: List<Pair<Cell, Int>> = adjacentCells
-                .mapNotNull { it.moveTowards(enemiesOf) }
-                .sortedWith(PATH_COMPARATOR)
-                .take(1)
-                .map { Pair(this, it.second + 1) }
+
+            val subPaths = mutableListOf<Pair<Cell, Int>>()
+
+            var newBestDepth = bestDepth
+            for (adjacentCell in adjacentCells) {
+                val subPath = adjacentCell.moveTowards(enemiesOf, currentDepth + 1, newBestDepth)
+
+                if (subPath != null) {
+                    val path = Pair(this, subPath.second + 1)
+                    newBestDepth = min(bestDepth, path.second)
+                    subPaths.add(path)
+                }
+            }
 
             inPath = false
 
-            return subPaths.firstOrNull()
+            return subPaths.sortedWith(PATH_COMPARATOR).firstOrNull()
         }
     }
 
-    object WallCell : Cell() {
-        override val position get() = throw NotImplementedError("Wall position not supported")
-
-        override fun moveTowards(enemiesOf: Char): Pair<Cell, Int>? {
-            return null
-        }
-
-        override fun toString(): String = "#"
-    }
-
-    inner class Unit(override var position: Point, var type: Char, var hp: Int = 200, private val attackScore: Int = 3) : Cell() {
+    inner class Unit(position: Point, type: Char, var hp: Int = 200, private val attackScore: Int = 3) : Cell(position, type) {
         val isAlive get() = hp > 0
 
         override fun toString(): String = "$type"
@@ -177,7 +183,7 @@ class Combat(boardLines: List<String>) {
             }
         }
 
-        override fun moveTowards(enemiesOf: Char): Pair<Cell, Int>? {
+        override fun moveTowards(enemiesOf: Char, currentDepth: Int, bestDepth: Int): Pair<Cell, Int>? {
             return if (type != enemiesOf) {
                 Pair(this, 0)
             } else {

@@ -118,7 +118,6 @@ internal class CombatTest {
     }
 
     @Test
-    @Ignore
     fun test_actual() {
         val input = readInput(15).readLines()
 
