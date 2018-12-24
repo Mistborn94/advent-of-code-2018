@@ -8,26 +8,27 @@ class Day19(lines: List<String>) {
     val instructions = lines.subList(1, lines.size).map { Instruction.parseString(it) }
 
     fun solvePartA(): Int {
-        val registers = mutableListOf<Int>(0, 0, 0, 0, 0, 0)
+        val registers = mutableListOf(0, 0, 0, 0, 0, 0)
 
         executeProgram(registers)
         return registers[0]
     }
 
     fun solvePartB(useShortcut: Boolean = true): Int {
-        val registers = mutableListOf<Int>(1, 0, 0, 0, 0, 0)
+        val registers = mutableListOf(1, 0, 0, 0, 0, 0)
 
         executeProgram(registers, useShortcut)
         return registers[0]
     }
 
     private fun executeProgram(registers: MutableList<Int>, shortcut: Boolean = false) {
-        var instructionPointer = registers[instructionRegister]
+        val cpu = TimeTravelCpu(instructionRegister, instructions, registers)
+        registers[instructionRegister]
 
-        while (instructionPointer in instructions.indices) {
+        while (cpu.running) {
             //This part is specifically crafted for my input :(
             //It short circuits the inner loop that increments r4
-            if (shortcut && instructionPointer == 3 && registers[4] == 1) {
+            if (shortcut && cpu.instructionPointer == 3 && registers[4] == 1) {
                 registers[1] = 0
 
                 //The condition for r2 == 1L is needed to prevent it being added twice
@@ -37,16 +38,9 @@ class Day19(lines: List<String>) {
                 }
 
                 registers[4] = registers[5]
-
             } else {
-                registers[instructionRegister] = instructionPointer
-                val instruction = instructions[instructionPointer]
-                instruction.executeMutable(registers)
-
-
-                instructionPointer = registers[instructionRegister].toInt() + 1
+                cpu.tick()
             }
-
         }
     }
 }
