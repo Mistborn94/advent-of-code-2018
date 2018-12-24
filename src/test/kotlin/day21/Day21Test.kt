@@ -12,9 +12,11 @@ internal class Day21Test {
         val day21 = Day21(input)
 
         val partA = day21.partA(28)
-
         assertEquals(6483199, partA)
         println("A: $partA")
-        println("B: ${day21.partB()}")
+
+        val partB = day21.partB()
+        assertEquals(13338900, partB)
+        println("B: $partB")
     }
 }
