@@ -8,10 +8,15 @@ val PATH_COMPARATOR: Comparator<Pair<Combat.Cell, Int>> = comparing { path: Pair
     .thenComparing { path: Pair<Combat.Cell, Int> -> path.first.position.y }
     .thenComparing { path: Pair<Combat.Cell, Int> -> path.first.position.x }
 
+val ENEMY_COMPARATOR: Comparator<Combat.Unit> = comparing(Combat.Unit::hp)
+    .thenComparing { it -> it.position.y }
+    .thenComparing { it -> it.position.x }
+
 class Combat(boardLines: List<String>) {
 
     private val width = boardLines[0].length
     private val height = boardLines.size
+
     val board: MutableList<Cell>
     var rounds = 0
 
@@ -38,12 +43,12 @@ class Combat(boardLines: List<String>) {
     fun simulate(): Int {
 
         do {
-            println(this)
             val canContinue = round()
             rounds++
+            println("Round $rounds completed")
         } while (canContinue)
 
-        println(this)
+//        println(this)
         return score(rounds)
     }
 
@@ -129,25 +134,23 @@ class Combat(boardLines: List<String>) {
         override fun toString(): String = "#"
     }
 
-    inner class Unit(override var position: Point, var type: Char) : Cell() {
-        var hp = 200
-        private val attackScore = 3
-
+    inner class Unit(override var position: Point, var type: Char, var hp: Int = 200, private val attackScore: Int = 3) : Cell() {
         val isAlive get() = hp > 0
 
         override fun toString(): String = "$type"
 
-        private fun enemies(): List<Cell> = board.filter(this::isEnemy)
+        private fun enemies(): List<Unit> = board.filter(this::isEnemy).map { it as Unit }
 
         private fun isEnemy(it: Cell) = it is Unit && it.type != type
 
         fun takeTurn(): Boolean {
+            val allEnemies = enemies()
 
-            val consideredEnemies = enemies()
-
-            if (consideredEnemies.isEmpty()) {
+            if (allEnemies.isEmpty()) {
                 return false
             }
+
+            val consideredEnemies = allEnemies.filter { adjacentCells(it.position).any { cell -> cell is EmptyCell } }
 
             if (adjacentEnemies().isEmpty() && consideredEnemies.isNotEmpty()) {
                 move()
@@ -182,7 +185,10 @@ class Combat(boardLines: List<String>) {
             }
         }
 
-        private fun adjacentEnemies() = adjacentCells(position).filter(this::isEnemy).map { it as Unit }
+        private fun adjacentEnemies() = adjacentCells(position)
+            .filter(this::isEnemy)
+            .map { it as Unit }
+            .sortedWith(ENEMY_COMPARATOR)
 
         private fun attack(enemy: Unit) {
             enemy.hp -= attackScore

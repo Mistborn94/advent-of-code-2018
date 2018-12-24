@@ -1,5 +1,7 @@
 package day15
 
+import helper.readInput
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -112,6 +114,17 @@ internal class CombatTest {
         val combatGame = Combat(input)
 
         val score = combatGame.simulate()
-        assertEquals(28944, score)
+        assertEquals(18740, score)
+    }
+
+    @Test
+    @Ignore
+    fun test_actual() {
+        val input = readInput(15).readLines()
+
+        val combatGame = Combat(input)
+
+        val score = combatGame.simulate()
+        assertEquals(18740, score)
     }
 }
