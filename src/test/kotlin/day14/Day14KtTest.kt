@@ -1,12 +1,12 @@
 package day14
 
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 
-internal class Day14KtTest {
+class Day14KtTest {
 
     @Test
-    internal fun test_sample() {
+    fun test_sample() {
         assertEquals("5158916779", scoresOfNextTen(9), "Sample 1 A")
         assertEquals("0124515891", scoresOfNextTen(5), "Sample 2 A")
         assertEquals("9251071085", scoresOfNextTen(18), "Sample 3 A")
@@ -20,7 +20,7 @@ internal class Day14KtTest {
 
 
     @Test
-    internal fun test_actual() {
+    fun test_actual() {
         val input = 635041
 
         val scoresOfNextTen = scoresOfNextTen(input)
