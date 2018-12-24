@@ -4,9 +4,9 @@ import java.util.Comparator.comparing
 
 data class Point(val x: Int, val y: Int)
 
-val PATH_COMPARATOR: Comparator<List<Combat.Cell>> = comparing { path: List<Combat.Cell> -> path.size }
-    .thenComparing { path: List<Combat.Cell> -> path[0].position.y }
-    .thenComparing { path: List<Combat.Cell> -> path[0].position.x }
+val PATH_COMPARATOR: Comparator<Pair<Combat.Cell, Int>> = comparing { path: Pair<Combat.Cell, Int> -> path.second }
+    .thenComparing { path: Pair<Combat.Cell, Int> -> path.first.position.y }
+    .thenComparing { path: Pair<Combat.Cell, Int> -> path.first.position.x }
 
 class Combat(boardLines: List<String>) {
 
@@ -51,7 +51,7 @@ class Combat(boardLines: List<String>) {
         val hpTotal = board.filter { it is Unit }.sumBy { (it as Unit).hp }
         val score = hpTotal * (rounds - 1)
 
-        println("$hpTotal x ${rounds - 1} = $score")
+        println("${rounds - 1} x $hpTotal = $score")
 
         return score
     }
@@ -92,40 +92,38 @@ class Combat(boardLines: List<String>) {
 
     abstract class Cell {
         abstract val position: Point
-        abstract fun moveTowards(possibleEnemies: List<Cell>): List<List<Cell>>
+        abstract fun moveTowards(enemiesOf: Char): Pair<Cell, Int>?
     }
 
     inner class EmptyCell(override val position: Point) : Cell() {
         override fun toString(): String = "."
         var inPath = false
 
-        //TODO: Optimise? I don't think I actually need the entire path here. Since we only actually care about the first step
-        override fun moveTowards(possibleEnemies: List<Cell>): List<List<Cell>> {
+        override fun moveTowards(enemiesOf: Char): Pair<Cell, Int>? {
             if (inPath) {
-                return emptyList()
+                return null
             }
 
             inPath = true
 
             val adjacentCells = adjacentCells(position)
-            val paths = mutableListOf<List<Cell>>()
-
-            for (adjacentCell in adjacentCells) {
-                val subPaths = adjacentCell.moveTowards(possibleEnemies)
-
-                paths.addAll(subPaths.map { listOf(this).plus(it) })
-            }
+            val subPaths: List<Pair<Cell, Int>> = adjacentCells
+                .mapNotNull { it.moveTowards(enemiesOf) }
+                .sortedWith(PATH_COMPARATOR)
+                .take(1)
+                .map { Pair(this, it.second + 1) }
 
             inPath = false
-            return paths
+
+            return subPaths.firstOrNull()
         }
     }
 
     object WallCell : Cell() {
         override val position get() = throw NotImplementedError("Wall position not supported")
 
-        override fun moveTowards(possibleEnemies: List<Cell>): List<List<Cell>> {
-            return emptyList()
+        override fun moveTowards(enemiesOf: Char): Pair<Cell, Int>? {
+            return null
         }
 
         override fun toString(): String = "#"
@@ -152,7 +150,7 @@ class Combat(boardLines: List<String>) {
             }
 
             if (adjacentEnemies().isEmpty() && consideredEnemies.isNotEmpty()) {
-                move(consideredEnemies)
+                move()
             }
 
             if (adjacentEnemies().isNotEmpty()) {
@@ -162,27 +160,25 @@ class Combat(boardLines: List<String>) {
             return true
         }
 
-        private fun move(consideredEnemies: List<Cell>) {
-
+        private fun move() {
             val path = adjacentCells(position)
-                .map { it.moveTowards(consideredEnemies) }
-                .flatten()
+                .mapNotNull { it.moveTowards(type) }
                 .sortedWith(PATH_COMPARATOR)
                 .firstOrNull()
 
             if (path != null) {
-                val target = path[0]
+                val target = path.first
                 set(position, EmptyCell(position))
                 position = target.position
                 set(position, this)
             }
         }
 
-        override fun moveTowards(possibleEnemies: List<Cell>): List<List<Cell>> {
-            return if (possibleEnemies.contains(this)) {
-                listOf(listOf(this))
+        override fun moveTowards(enemiesOf: Char): Pair<Cell, Int>? {
+            return if (type != enemiesOf) {
+                Pair(this, 0)
             } else {
-                emptyList()
+                null
             }
         }
 
