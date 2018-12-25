@@ -1,33 +1,57 @@
 package day15
 
+import java.util.*
 import java.util.Comparator.comparing
-import kotlin.math.min
 
 data class Point(val x: Int, val y: Int)
 
-val PATH_COMPARATOR: Comparator<Pair<Combat.Cell, Int>> = comparing { path: Pair<Combat.Cell, Int> -> path.second }
-    .thenComparing { path: Pair<Combat.Cell, Int> -> path.first.position.y }
-    .thenComparing { path: Pair<Combat.Cell, Int> -> path.first.position.x }
+val PATH_COMPARATOR: Comparator<Pair<Cell, Int>> = comparing { path: Pair<Cell, Int> -> path.second }
+    .thenComparing { path: Pair<Cell, Int> -> path.first.position.y }
+    .thenComparing { path: Pair<Cell, Int> -> path.first.position.x }
 
-val ENEMY_COMPARATOR: Comparator<Combat.Unit> = comparing(Combat.Unit::hp)
+val ENEMY_COMPARATOR: Comparator<UnitCell> = comparing(UnitCell::hp)
     .thenComparing { it -> it.position.y }
     .thenComparing { it -> it.position.x }
 
-class Combat(boardLines: List<String>) {
+fun findBestElvenAttackScore(boardLines: List<String>): Int {
+
+    var score = 3
+    var result: Pair<Int, Char>
+    do {
+        score += 1
+        val combat = Combat(boardLines, score)
+        result = combat.simulate()
+    } while (result.second == 'G' || combat.elves.any { !it.isAlive })
+
+    return result.first
+}
+
+class Combat(boardLines: List<String>, elvenAttackScore: Int = 3) {
 
     private val width = boardLines[0].length
     private val height = boardLines.size
 
     val board: MutableList<Cell>
-    var rounds = 0
+    private var rounds = 0
+    val elves = mutableSetOf<UnitCell>()
+    val goblins  = mutableSetOf<UnitCell>()
 
     init {
         board = boardLines.mapIndexed { y, line ->
             line.mapIndexed { x, char ->
                 when (char) {
-                    '#' -> Cell(Point(x, y), char)
+                    '#' -> WallCell(Point(x, y))
                     '.' -> EmptyCell(Point(x, y))
-                    'G', 'E' -> Unit(Point(x, y), char)
+                    'G' -> {
+                        val unit = UnitCell(Point(x, y), char, combat = this)
+                        goblins.add(unit)
+                        unit
+                    }
+                    'E' -> {
+                        val unit = UnitCell(Point(x, y), char, elvenAttackScore, combat = this)
+                        elves.add(unit)
+                        unit
+                    }
                     else -> throw IllegalArgumentException("Unknown cell $char at ($x,$y)")
                 }
             }
@@ -35,29 +59,27 @@ class Combat(boardLines: List<String>) {
     }
 
     private fun round(): Boolean = board
-        .filter { it is Unit }
-        .map { it as Unit }
+        .filter { it is UnitCell }
+        .map { it as UnitCell }
         .asSequence()
         .filter { it.isAlive }
         .fold(true) { result, unit -> result && unit.takeTurn() }
 
-    fun simulate(): Int {
-
+    fun simulate(): Pair<Int, Char> {
         do {
             val canContinue = round()
             rounds++
-            println("Round $rounds completed")
         } while (canContinue)
 
-//        println(this)
-        return score(rounds)
+        val winningTeam = board.first { it is UnitCell }.type
+        return Pair(score(), winningTeam)
     }
 
-    private fun score(rounds: Int): Int {
-        val hpTotal = board.filter { it is Unit }.sumBy { (it as Unit).hp }
+    private fun score(): Int {
+        val hpTotal = board.filter { it is UnitCell && it.isAlive }.sumBy { (it as UnitCell).hp }
         val score = hpTotal * (rounds - 1)
 
-        println("${rounds - 1} x $hpTotal = $score")
+//        println("${rounds - 1} x $hpTotal = $score")
 
         return score
     }
@@ -96,112 +118,58 @@ class Combat(boardLines: List<String>) {
         return "Round $rounds\n" + board.chunked(width).joinToString("\n") { it.joinToString("") } + "\n"
     }
 
-    open class Cell(var position: Point, val type: Char) {
-        open fun moveTowards(enemiesOf: Char, currentDepth: Int = 0, bestDepth: Int = Int.MAX_VALUE): Pair<Cell, Int>? {
-            return null
+    fun bfs(origin: UnitCell): Pair<Cell, Int>? {
+        val pathInfo = mutableMapOf<Cell, Cell>()
+        val visited = mutableSetOf<Cell>()
+        val unvisited = sortedSetOf(PATH_COMPARATOR)
+
+        for (cell in adjacentCells(origin.position)) {
+            pathInfo[cell] = origin
+            unvisited.add(Pair(cell, 1))
         }
 
-        override fun toString(): String = type.toString()
-    }
+        while (unvisited.isNotEmpty()) {
+            val first = unvisited.first()
+            unvisited.remove(first)
+            val (subtreeRoot, distance) = first
 
-    inner class EmptyCell(position: Point) : Cell(position, '.') {
-
-        var inPath = false
-
-        override fun moveTowards(enemiesOf: Char, currentDepth: Int, bestDepth: Int): Pair<Cell, Int>? {
-            if (inPath) {
-                return null
+            if (origin.isEnemy(subtreeRoot)) {
+                return buildPath(pathInfo, subtreeRoot, origin)
             }
 
-            if (currentDepth > bestDepth) {
-                return null
-            }
-
-            inPath = true
-
-            val adjacentCells = adjacentCells(position)
-
-            val subPaths = mutableListOf<Pair<Cell, Int>>()
-
-            var newBestDepth = bestDepth
-            for (adjacentCell in adjacentCells) {
-                val subPath = adjacentCell.moveTowards(enemiesOf, currentDepth + 1, newBestDepth)
-
-                if (subPath != null) {
-                    val path = Pair(this, subPath.second + 1)
-                    newBestDepth = min(bestDepth, path.second)
-                    subPaths.add(path)
+            if (subtreeRoot is EmptyCell) {
+                for (adjacentCell in adjacentCells(subtreeRoot.position)) {
+                    if (adjacentCell !in visited && !unvisited.any { it.first == adjacentCell }) {
+                        pathInfo[adjacentCell] = subtreeRoot
+                        unvisited.add(Pair(adjacentCell, distance + 1))
+                    }
                 }
             }
 
-            inPath = false
-
-            return subPaths.sortedWith(PATH_COMPARATOR).firstOrNull()
+            visited.add(subtreeRoot)
         }
+
+        return null
     }
 
-    inner class Unit(position: Point, type: Char, var hp: Int = 200, private val attackScore: Int = 3) : Cell(position, type) {
-        val isAlive get() = hp > 0
+    private fun buildPath(
+        pathInfo: MutableMap<Cell, Cell>,
+        subtreeRoot: Cell,
+        origin: UnitCell
+    ): Pair<Cell, Int> {
+        var pathLength = 0
+        var currentRoot: Cell = subtreeRoot
 
-        override fun toString(): String = "$type"
-
-        private fun enemies(): List<Unit> = board.filter(this::isEnemy).map { it as Unit }
-
-        private fun isEnemy(it: Cell) = it is Unit && it.type != type
-
-        fun takeTurn(): Boolean {
-            val allEnemies = enemies()
-
-            if (allEnemies.isEmpty()) {
-                return false
-            }
-
-            val consideredEnemies = allEnemies.filter { adjacentCells(it.position).any { cell -> cell is EmptyCell } }
-
-            if (adjacentEnemies().isEmpty() && consideredEnemies.isNotEmpty()) {
-                move()
-            }
-
-            if (adjacentEnemies().isNotEmpty()) {
-                attack(adjacentEnemies()[0])
-            }
-
-            return true
-        }
-
-        private fun move() {
-            val path = adjacentCells(position)
-                .mapNotNull { it.moveTowards(type) }
-                .sortedWith(PATH_COMPARATOR)
-                .firstOrNull()
-
-            if (path != null) {
-                val target = path.first
-                set(position, EmptyCell(position))
-                position = target.position
-                set(position, this)
-            }
-        }
-
-        override fun moveTowards(enemiesOf: Char, currentDepth: Int, bestDepth: Int): Pair<Cell, Int>? {
-            return if (type != enemiesOf) {
-                Pair(this, 0)
+        while (pathInfo[currentRoot] != origin) {
+            if (!pathInfo.contains(currentRoot)) {
+                throw IllegalStateException("unable to reconstruct path from ${currentRoot.position}")
             } else {
-                null
+                currentRoot = pathInfo[currentRoot]!!
             }
+            pathLength++
         }
 
-        private fun adjacentEnemies() = adjacentCells(position)
-            .filter(this::isEnemy)
-            .map { it as Unit }
-            .sortedWith(ENEMY_COMPARATOR)
-
-        private fun attack(enemy: Unit) {
-            enemy.hp -= attackScore
-            if (!enemy.isAlive) {
-                set(enemy.position, EmptyCell(enemy.position))
-            }
-        }
+        return Pair(currentRoot, pathLength)
     }
 
 }

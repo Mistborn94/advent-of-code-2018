@@ -1,9 +1,9 @@
 package day15
 
 import helper.readInput
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 internal class CombatTest {
 
@@ -21,8 +21,11 @@ internal class CombatTest {
 
         val combatGame = Combat(input)
 
-        val score = combatGame.simulate()
+        val score = combatGame.simulate().first
         assertEquals(27730, score)
+
+        val partB = findBestElvenAttackScore(input)
+        assertEquals(4988, partB)
     }
 
     @Test
@@ -39,7 +42,7 @@ internal class CombatTest {
 
         val combatGame = Combat(input)
 
-        val score = combatGame.simulate()
+        val score = combatGame.simulate().first
         assertEquals(36334, score)
     }
 
@@ -57,8 +60,11 @@ internal class CombatTest {
 
         val combatGame = Combat(input)
 
-        val score = combatGame.simulate()
+        val score = combatGame.simulate().first
         assertEquals(39514, score)
+
+        val partB = findBestElvenAttackScore(input)
+        assertEquals(31284, partB)
     }
 
     @Test
@@ -75,8 +81,11 @@ internal class CombatTest {
 
         val combatGame = Combat(input)
 
-        val score = combatGame.simulate()
+        val score = combatGame.simulate().first
         assertEquals(27755, score)
+
+        val partB = findBestElvenAttackScore(input)
+        assertEquals(3478, partB)
     }
 
     @Test
@@ -93,8 +102,11 @@ internal class CombatTest {
 
         val combatGame = Combat(input)
 
-        val score = combatGame.simulate()
+        val score = combatGame.simulate().first
         assertEquals(28944, score)
+
+        val partB = findBestElvenAttackScore(input)
+        assertEquals(6474, partB)
     }
 
     @Test
@@ -113,8 +125,11 @@ internal class CombatTest {
 
         val combatGame = Combat(input)
 
-        val score = combatGame.simulate()
+        val score = combatGame.simulate().first
         assertEquals(18740, score)
+
+        val partB = findBestElvenAttackScore(input)
+        assertEquals(1140, partB)
     }
 
     @Test
@@ -123,7 +138,33 @@ internal class CombatTest {
 
         val combatGame = Combat(input)
 
-        val score = combatGame.simulate()
-        assertEquals(18740, score)
+        val score = combatGame.simulate().first
+        assertEquals(201123, score)
+
+        val partB = findBestElvenAttackScore(input)
+        println("B: $partB")
+
+        assertNotEquals(14, partB)
+        assertNotEquals(13, partB)
+        assertNotEquals(7, partB)
+        assertNotEquals(15, partB)
+    }
+
+
+    @Test
+    fun test_movementEdgeCase_1() {
+        val input = listOf(
+            "#######",
+            "#.E..G#",
+            "#.#####",
+            "#G#####",
+            "#######"
+        )
+
+        val combatGame = Combat(input, 15)
+        val elf = combatGame.elves.first()
+        val (target, _) = combatGame.bfs(elf)!!
+
+        assertEquals(Point(3, 1), target.position)
     }
 }
