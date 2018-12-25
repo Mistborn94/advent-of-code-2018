@@ -34,7 +34,6 @@ class Combat(boardLines: List<String>, elvenAttackScore: Int = 3) {
     val board: MutableList<Cell>
     private var rounds = 0
     val elves = mutableSetOf<UnitCell>()
-    val goblins  = mutableSetOf<UnitCell>()
 
     init {
         board = boardLines.mapIndexed { y, line ->
@@ -44,7 +43,6 @@ class Combat(boardLines: List<String>, elvenAttackScore: Int = 3) {
                     '.' -> EmptyCell(Point(x, y))
                     'G' -> {
                         val unit = UnitCell(Point(x, y), char, combat = this)
-                        goblins.add(unit)
                         unit
                     }
                     'E' -> {
@@ -76,12 +74,9 @@ class Combat(boardLines: List<String>, elvenAttackScore: Int = 3) {
     }
 
     private fun score(): Int {
-        val hpTotal = board.filter { it is UnitCell && it.isAlive }.sumBy { (it as UnitCell).hp }
-        val score = hpTotal * (rounds - 1)
+        val hpTotal = board.filter { it is UnitCell }.sumBy { (it as UnitCell).hp }
 
-//        println("${rounds - 1} x $hpTotal = $score")
-
-        return score
+        return hpTotal * (rounds - 1)
     }
 
     operator fun get(x: Int, y: Int): Cell = board[index(x, y)]
@@ -173,24 +168,4 @@ class Combat(boardLines: List<String>, elvenAttackScore: Int = 3) {
     }
 
 }
-
-//Identify all possible targets (all enemy units)
-// -> No enemies = combat ends
-//Identify open squares adjacent to each target
-// -> if not in range + no open squares = turn ends
-
-//If a target is in range = attack
-//Else = move
-
-//To Move:
-//Find reachable enemy-adjacent squares
-//Order by distance from current location
-//Move towards enemy
-//(On tie - use reading order)
-
-//To Attack:
-//Select adjacent unit with fewest HP
-//Deal damage = attack power
-//HP <= 0: Die
-
 

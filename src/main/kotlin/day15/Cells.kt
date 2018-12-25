@@ -7,6 +7,26 @@ abstract class Cell(var position: Point, val type: Char) {
 class WallCell(point: Point) : Cell(point, '#')
 class EmptyCell(position: Point) : Cell(position, '.')
 
+// Turn Order:
+// -----------
+// Identify all possible targets (all enemy units)
+// -> No enemies = combat ends
+// Identify open squares adjacent to each target
+// -> if not in range + no open squares = turn ends
+
+// If a target is in range = attack
+// Else = move
+
+// To Move:
+// Find reachable enemy-adjacent squares
+// Order by distance from current location
+// Move towards enemy
+// (On tie - use reading order)
+
+// To Attack:
+// Select adjacent unit with fewest HP
+// Deal damage = attack power
+// HP <= 0: Die
 class UnitCell(position: Point, type: Char, private val attackScore: Int = 3, private val combat: Combat) :
     Cell(position, type) {
     var hp =  200
