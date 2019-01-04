@@ -1,5 +1,7 @@
 package day10
 
+import helper.Point
+
 val pattern = "position=< ?(-?\\d+), +(-?\\d+)> velocity=< ?(-?\\d+), +(-?\\d+)>".toRegex()
 
 class StarMessage(id: String, private val maxIterations: Int, points: List<String>, private val textHeight: Int = 10) {
@@ -65,11 +67,5 @@ data class Star(var position: Point, val velocity: Point) {
 
     fun move() {
         this.position = this.position + this.velocity
-    }
-}
-
-data class Point(val x: Int, val y: Int) {
-    operator fun plus(other: Point): Point {
-        return Point(x + other.x, y + other.y)
     }
 }

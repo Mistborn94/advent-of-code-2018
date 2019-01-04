@@ -1,5 +1,7 @@
 package day15
 
+import helper.Point
+
 abstract class Cell(var position: Point, val type: Char) {
     override fun toString(): String = type.toString()
 }

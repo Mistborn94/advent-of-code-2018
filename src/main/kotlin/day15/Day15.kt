@@ -1,9 +1,8 @@
 package day15
 
+import helper.Point
 import java.util.*
 import java.util.Comparator.comparing
-
-data class Point(val x: Int, val y: Int)
 
 val PATH_COMPARATOR: Comparator<Pair<Cell, Int>> = comparing { path: Pair<Cell, Int> -> path.second }
     .thenComparing { path: Pair<Cell, Int> -> path.first.position.y }

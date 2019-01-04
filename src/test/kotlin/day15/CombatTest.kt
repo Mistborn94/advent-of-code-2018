@@ -1,5 +1,6 @@
 package day15
 
+import helper.Point
 import helper.readInput
 import kotlin.test.Test
 import kotlin.test.assertEquals
