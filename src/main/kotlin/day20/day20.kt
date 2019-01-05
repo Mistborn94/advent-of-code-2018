@@ -18,7 +18,6 @@ class BuildingMap(path: String) {
     fun roomAt(position: Point) = allRooms.firstOrNull { it.position == position }
 
     override fun toString(): String {
-//        val rows = allRooms.sortedWith(comparing<Room, Int>{it.position.y}).groupBy { it.position.x }
 
         val minX = allRooms.map { it.position.x }.min()!!
         val maxX = allRooms.map { it.position.x }.max()!!
