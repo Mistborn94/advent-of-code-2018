@@ -1,15 +1,15 @@
 package day23
 
-import helper.Grid
 import kotlin.math.abs
 
-data class Nanobot(val x: Int, val y: Int, val z: Int, val r: Int) {
+data class Nanobot(val x: Int, val y: Int, val z: Int, var r: Int) {
 
     fun distance(other: Nanobot): Int = abs(x - other.x) + abs(y - other.y) + abs(z - other.z)
     fun distance(oX: Int, oY: Int, oZ: Int): Int = abs(x - oX) + abs(y - oY) + abs(z - oZ)
 
     fun inRange(other: Nanobot): Boolean = distance(other) <= r
-    fun inRange(x: Int, y: Int, z: Int): Boolean = distance(x,y,z) <= r
+
+    fun intersects(other: Nanobot): Boolean = distance(other) < this.r + other.r
 }
 
 class Day23(input: List<String>) {
@@ -28,25 +28,40 @@ class Day23(input: List<String>) {
         return swarm.count { powerfulBot.inRange(it) }
     }
 
-    private fun initGirdArea(nanobot: Nanobot, grid: Grid<Int>) {
-        for (xo in -nanobot.r..nanobot.r) {
-            val yRange = nanobot.r - abs(xo)
-            for (yo in -yRange..yRange) {
-                val zRange = nanobot.r - abs(xo) - abs(yo)
-                for (zo in -zRange..nanobot.r) {
-                    val x = nanobot.x + xo
-                    val y = nanobot.y + yo
-                    val z = nanobot.z + zo
-                    if (grid.inRange(x, y, z)) {
-                        grid[x, y, z] += 1
-                    }
+    fun solvePartB(): Int {
+        val overlap = buildOverlapMap()
+
+        //Not correct. What if I handle it like a graph search maybe?
+        val overlappingBots = overlap.values.maxBy { it.size }!!
+
+        val startingDistance = overlappingBots.map { it.distance(0, 0, 0) }.min()
+        val endingDistance = overlappingBots.map { it.distance(0, 0, 0) }.max()
+
+        val testBot = Nanobot(0, 0, 0, startingDistance!!)
+
+        while (!overlappingBots.all { testBot.inRange(it) }) {
+            testBot.r += 1
+
+            if (testBot.r > endingDistance!!) {
+                throw IllegalStateException("No valid range found between $startingDistance and $endingDistance")
+            }
+        }
+
+        return testBot.r
+    }
+
+    private fun buildOverlapMap(): Map<Nanobot, Set<Nanobot>> {
+        val overlap = mutableMapOf<Nanobot, MutableSet<Nanobot>>()
+
+        for ((index, first) in swarm.subList(0, swarm.size - 1).withIndex()) {
+            for (second in swarm.subList(index + 1, swarm.size)) {
+                if (first.intersects(second)) {
+                    overlap.getOrPut(first) { mutableSetOf(first) }.add(second)
+                    overlap.getOrPut(second) { mutableSetOf(second) }.add(first)
                 }
             }
         }
-    }
-
-    fun solvePartB(): Int {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return overlap
     }
 }
 
