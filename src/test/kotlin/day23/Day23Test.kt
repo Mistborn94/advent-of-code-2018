@@ -38,7 +38,7 @@ internal class Day23Test {
 
         val day23 = Day23(input)
 
-        assertEquals(36, day23.solvePartB())
+        assertEquals(36, day23.partB())
     }
 
     @Test
@@ -48,9 +48,10 @@ internal class Day23Test {
         val day23 = Day23(input)
 
         val partA = day23.solvePartA()
+        assertEquals(457, partA)
         println("A: $partA")
-        val partB = day23.solvePartB()
+        val partB = day23.partB()
+        assertEquals(105370773, partB)
         println("B: $partB")
-//        assertEquals(B, partB)
     }
 }

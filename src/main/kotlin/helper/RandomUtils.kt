@@ -1,10 +1,5 @@
 package helper
 
-
-fun <T> List<List<T>>.countType(type: T): Int {
-    return this.sumBy { line -> line.count { it == type } }
-}
-
 fun <T> performTicksLooped(totalIterations: Long, initialState: T, tick: (T) -> T): T {
     val seenStates = linkedSetOf(initialState)
 
@@ -47,3 +42,4 @@ private fun <T> findFinalIterationLoopIndex(
         ((totalIterations - iteration) % loopSize + loopStart).toInt()
     }
 }
+
