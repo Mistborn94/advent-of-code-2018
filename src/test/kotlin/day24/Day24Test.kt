@@ -30,7 +30,7 @@ Infection:
         assertEquals(16090, partA)
         println("A: $partA")
         val partB = solveB(input)
-//        assertEquals(0, partB)
+        assertEquals(8291, partB)
         println("B: $partB")
     }
 }
